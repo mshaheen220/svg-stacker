@@ -141,6 +141,8 @@ No `project_settings.config` is written, so Orca keeps the user's current printe
 
 **Drag and drop:** one `DndContext` with prefixed ids (`L:` level, `P:` part, `D:` level drop zone). Pointer collision and the keyboard coordinate getter are both filtered so levels only target levels and parts only target parts or drop zones. Every drag action also has a button or select equivalent.
 
+**List order:** `arrangement.levels` is stored bottom-first (index 0 = base), but `LevelEditor` renders it reversed so the list mirrors the design (top of the print at the top). Indices passed to cards are always real. `onDragEnd` resolves positions by id, so drag-and-drop and the keyboard getter need no special casing. ↑/⤒ move toward the top of the stack, and the plate card renders last.
+
 `reverseLevels()` reverses `arrangement.levels`, an involution, so a second press restores the order. `moveLevelToEnd(id, "top" | "bottom")` jumps one level. Thickness overrides travel with their level, and the base thickness always applies to whichever level ends up printed first. The plate isn't in `levels`, so it always stays at the bottom.
 
 ### Roadmap

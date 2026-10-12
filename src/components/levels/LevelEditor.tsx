@@ -61,9 +61,12 @@ export function LevelEditor({ onHighlight }: Props) {
   const partsByKey = useMemo(() => new Map(parts.map((p) => [p.key, p])), [parts]);
   const printed = useMemo(() => new Map(planLevels(arrangement, partsByKey).map((p) => [p.id, p])), [arrangement, partsByKey]);
   const levels = arrangement.levels;
-  // "Move…" targets, labelled like the card titles.
+  // "Move…" targets, labelled like the card titles, top of the design first (like the list).
   const levelOptions = useMemo(
-    () => levels.map((l, i) => ({ id: l.id, label: printed.get(l.id) ? `Level ${printed.get(l.id)!.number}` : `Unprinted (${i + 1} in list)` })),
+    () =>
+      levels
+        .map((l) => ({ id: l.id, label: printed.get(l.id) ? `Level ${printed.get(l.id)!.number}` : "Unprinted level" }))
+        .reverse(),
     [levels, printed],
   );
 
@@ -119,11 +122,17 @@ export function LevelEditor({ onHighlight }: Props) {
 
   if (parts.length === 0) return null;
 
+  // The list mirrors the design: the top of the print is the top of the list.
+  // arrangement.levels stays bottom-first; only the rendering is reversed, and
+  // every index passed down is the real one (0 = base). Drag-and-drop resolves
+  // positions by id, so it needs no special casing.
+  const topDown = levels.map((level, index) => ({ level, index })).reverse();
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-ink-400">
-          Bottom (printed first) to top. Drag the ⠿ handles, or use the arrows and “Move…” menus.
+          Top of the design first, base (printed first) at the bottom. Drag the ⠿ handles, or use the arrows and “Move…” menus.
         </p>
         <button
           type="button"
@@ -135,7 +144,13 @@ export function LevelEditor({ onHighlight }: Props) {
           ⇅ Reverse stack
         </button>
       </div>
-      {arrangement.settings.plate.enabled && printed.get(PLATE_ID) && <PlateCard plan={printed.get(PLATE_ID)!} />}
+      <button
+        type="button"
+        onClick={addLevel}
+        className="w-full rounded border border-dashed border-ink-700 py-1.5 text-sm text-ink-300 hover:border-accent-400 hover:text-ink-100"
+      >
+        + Add empty level on top
+      </button>
       <DndContext
         sensors={sensors}
         collisionDetection={collision}
@@ -143,9 +158,9 @@ export function LevelEditor({ onHighlight }: Props) {
         onDragEnd={onDragEnd}
         accessibility={{ announcements }}
       >
-        <SortableContext items={levels.map((l) => L(l.id))} strategy={verticalListSortingStrategy}>
-          <ol className="space-y-2" aria-label="Levels, bottom to top">
-            {levels.map((level, index) => (
+        <SortableContext items={topDown.map(({ level }) => L(level.id))} strategy={verticalListSortingStrategy}>
+          <ol className="space-y-3" aria-label="Levels, top of the design first">
+            {topDown.map(({ level, index }) => (
               <LevelCard
                 key={level.id}
                 level={level}
@@ -160,13 +175,7 @@ export function LevelEditor({ onHighlight }: Props) {
           </ol>
         </SortableContext>
       </DndContext>
-      <button
-        type="button"
-        onClick={addLevel}
-        className="w-full rounded border border-dashed border-ink-700 py-1.5 text-sm text-ink-300 hover:border-accent-400 hover:text-ink-100"
-      >
-        + Add empty level on top
-      </button>
+      {arrangement.settings.plate.enabled && printed.get(PLATE_ID) && <PlateCard plan={printed.get(PLATE_ID)!} />}
     </div>
   );
 }
@@ -203,14 +212,15 @@ function LevelCard({ level, index, count, partsByKey, zRange, levelOptions, onHi
   return (
     <li
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform), transition }}
-      className={`rounded-lg border bg-ink-900/70 ${isDragging ? "z-10 border-accent-400 shadow-lg" : "border-ink-800"} ${
-        zRange ? "" : "opacity-60"
-      }`}
+      // The left stripe shows the level's filament color so neighbours are easy to tell apart.
+      style={{ transform: CSS.Translate.toString(transform), transition, borderLeftColor: colors[0] }}
+      className={`rounded-lg border border-l-[6px] bg-ink-800/80 shadow-md shadow-black/20 ${
+        isDragging ? "z-10 border-accent-400 shadow-lg" : "border-ink-600"
+      } ${zRange ? "" : "opacity-60"}`}
       aria-label={title}
     >
       <div
-        className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-ink-800 px-2 py-1.5"
+        className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-ink-600 px-2 py-1.5"
         onMouseEnter={() => onHighlight(enabled.map((p) => p.key))}
         onMouseLeave={() => onHighlight(null)}
       >
@@ -234,16 +244,16 @@ function LevelCard({ level, index, count, partsByKey, zRange, levelOptions, onHi
             fallback={fallback}
             onChange={(mm) => setLevelThickness(level.id, mm)}
           />
-          <IconButton label={`Move ${title} to the bottom of the stack`} disabled={index === 0} onClick={() => moveLevelToEnd(level.id, "bottom")}>
+          <IconButton label={`Move ${title} to the top of the design`} disabled={index === count - 1} onClick={() => moveLevelToEnd(level.id, "top")}>
             ⤒
           </IconButton>
-          <IconButton label={`Move ${title} toward the base`} disabled={index === 0} onClick={() => moveLevel(index, index - 1)}>
+          <IconButton label={`Move ${title} up one level`} disabled={index === count - 1} onClick={() => moveLevel(index, index + 1)}>
             ↑
           </IconButton>
-          <IconButton label={`Move ${title} toward the top`} disabled={index === count - 1} onClick={() => moveLevel(index, index + 1)}>
+          <IconButton label={`Move ${title} down one level`} disabled={index === 0} onClick={() => moveLevel(index, index - 1)}>
             ↓
           </IconButton>
-          <IconButton label={`Move ${title} to the top of the stack`} disabled={index === count - 1} onClick={() => moveLevelToEnd(level.id, "top")}>
+          <IconButton label={`Move ${title} to the base`} disabled={index === 0} onClick={() => moveLevelToEnd(level.id, "bottom")}>
             ⤓
           </IconButton>
           {level.partKeys.length === 0 && (
@@ -295,7 +305,7 @@ function PartRow({
       onMouseEnter={() => onHighlight([part.key])}
       onMouseLeave={() => onHighlight(null)}
       className={`flex items-center gap-1.5 rounded border px-1.5 py-1 ${
-        isDragging ? "relative z-10 border-accent-400 bg-ink-800" : "border-ink-800 bg-ink-950/60"
+        isDragging ? "relative z-10 border-accent-400 bg-ink-800" : "border-ink-700 bg-ink-950/80"
       }`}
     >
       <DragHandle label={`Move part ${name}`} setRef={setActivatorNodeRef} {...attributes} {...listeners} />
@@ -396,7 +406,11 @@ function PlateCard({ plan }: { plan: LevelPlan }) {
   const stackLevel = useStack((s) => s.result?.levels.find((l) => l.isPlate));
   const { plate, nozzle } = arrangement.settings;
   return (
-    <div className="rounded-lg border border-ink-800 bg-ink-900/70 px-2 py-1.5" aria-label="Level 1, background plate">
+    <div
+      className="rounded-lg border border-l-[6px] border-ink-600 bg-ink-800/80 px-2 py-1.5 shadow-md shadow-black/20"
+      style={{ borderLeftColor: plate.color }}
+      aria-label="Level 1, background plate"
+    >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span aria-hidden className="h-4 w-4 rounded-sm border border-ink-600" style={{ background: plate.color }} />
         <span className="text-sm font-medium">

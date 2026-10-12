@@ -27,10 +27,10 @@ Shapes are grouped into **parts**. Each part is one filament color in the finish
 
 ## 3. Arrange the levels
 
-The **Levels** panel on the right lists levels from the bottom (Level 1, printed first) to the top. Each level is printed in one filament color, and by default each part gets its own level in the order it was drawn.
+The **Levels** panel on the right is ordered like the design: the level on top of the print is at the top of the list, and the base (Level 1, printed first) is at the bottom. Each card has a stripe in its filament color down its left edge. Each level is printed in one filament color, and by default each part gets its own level in the order it was drawn.
 
-- **Reorder levels:** drag a level by its ⠿ handle, or use the ↑ / ↓ arrows.
-- **Jump a level to the top or bottom of the stack:** use ⤓ (to the top of the print) and ⤒ (to the base) on its card. To see "what if the black outline were the top layer", click ⤓ on the black level.
+- **Reorder levels:** drag a level by its ⠿ handle, or use the ↑ / ↓ arrows, which move it up or down one level.
+- **Jump a level to the top or the base:** use ⤒ (top of the design) and ⤓ (base) on its card. To see "what if the black outline were the top layer", click ⤒ on the black level.
 - **Reverse the whole stack:** **⇅ Reverse stack** flips the print order of every level, so the top color prints first. The plate, if on, stays at the bottom. Press it again to get your original order back. With artwork whose first color is a big background shape, reversing puts that shape on top and covers everything else, so the per-level buttons are usually quicker for trying ideas. With the keyboard, focus the handle, press Space, move with the arrow keys, and press Space again to drop (Esc cancels).
 - **Move parts between levels:** drag a part's ⠿ handle onto another level, or use its **Move…** menu. The menu can also create a new level at the top or bottom. Putting several parts on one level prints them in the same filament. If their colors differ, you'll see a warning and the first part's color is used.
 - **Rename a part:** click its name and type. The name is used in OrcaSlicer. Clear it to go back to the default name.
