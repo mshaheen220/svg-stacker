@@ -23,7 +23,6 @@ import type { Part } from "../../lib/parts";
 import type { StackLevel } from "../../lib/geometry/stack";
 import { useProject } from "../../store/useProject";
 import { useStack } from "../../store/useStack";
-import { useView } from "../../store/useView";
 import { ThicknessInput } from "./ThicknessInput";
 
 // dnd-kit ids are prefixed so levels and parts share one DndContext:
@@ -58,16 +57,15 @@ interface Props {
 }
 
 export function LevelEditor({ onHighlight }: Props) {
-  const { arrangement, parts, moveLevel, movePart, addLevel } = useProject();
+  const { arrangement, parts, moveLevel, movePart, addLevel, reverseLevels } = useProject();
   const partsByKey = useMemo(() => new Map(parts.map((p) => [p.key, p])), [parts]);
   const printed = useMemo(() => new Map(planLevels(arrangement, partsByKey).map((p) => [p.id, p])), [arrangement, partsByKey]);
   const levels = arrangement.levels;
-  const listOrder = useView((s) => s.listOrder);
-  // "Move…" targets, labelled like the card titles, in display order.
-  const levelOptions = useMemo(() => {
-    const opts = levels.map((l, i) => ({ id: l.id, label: printed.get(l.id) ? `Level ${printed.get(l.id)!.number}` : `Unprinted (${i + 1} in list)` }));
-    return listOrder === "top-first" ? opts.reverse() : opts;
-  }, [levels, printed, listOrder]);
+  // "Move…" targets, labelled like the card titles.
+  const levelOptions = useMemo(
+    () => levels.map((l, i) => ({ id: l.id, label: printed.get(l.id) ? `Level ${printed.get(l.id)!.number}` : `Unprinted (${i + 1} in list)` })),
+    [levels, printed],
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -121,31 +119,23 @@ export function LevelEditor({ onHighlight }: Props) {
 
   if (parts.length === 0) return null;
 
-  const topFirst = listOrder === "top-first";
-  // Display order only; indices passed down are always real (bottom = 0).
-  const displayed = levels.map((level, index) => ({ level, index }));
-  if (topFirst) displayed.reverse();
-  const plate = arrangement.settings.plate.enabled && printed.get(PLATE_ID) ? <PlateCard plan={printed.get(PLATE_ID)!} /> : null;
-  const addButton = (
-    <button
-      type="button"
-      onClick={addLevel}
-      className="w-full rounded border border-dashed border-ink-700 py-1.5 text-sm text-ink-300 hover:border-accent-400 hover:text-ink-100"
-    >
-      + Add empty level on top
-    </button>
-  );
-
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-ink-400">
-          {topFirst ? "Top (printed last) to bottom." : "Bottom (printed first) to top."} Drag the ⠿ handles, or use the arrows and “Move…”
-          menus.
+          Bottom (printed first) to top. Drag the ⠿ handles, or use the arrows and “Move…” menus.
         </p>
-        <ListOrderSwitch />
+        <button
+          type="button"
+          onClick={reverseLevels}
+          disabled={levels.length < 2}
+          title="Reverse the print order of all levels (the plate stays at the bottom). Press again to undo."
+          className="shrink-0 rounded border border-ink-700 px-2 py-0.5 text-xs text-ink-200 hover:border-accent-400 hover:text-ink-50 disabled:opacity-40"
+        >
+          ⇅ Reverse stack
+        </button>
       </div>
-      {topFirst ? addButton : plate}
+      {arrangement.settings.plate.enabled && printed.get(PLATE_ID) && <PlateCard plan={printed.get(PLATE_ID)!} />}
       <DndContext
         sensors={sensors}
         collisionDetection={collision}
@@ -153,9 +143,9 @@ export function LevelEditor({ onHighlight }: Props) {
         onDragEnd={onDragEnd}
         accessibility={{ announcements }}
       >
-        <SortableContext items={displayed.map(({ level }) => L(level.id))} strategy={verticalListSortingStrategy}>
-          <ol className="space-y-2" aria-label={topFirst ? "Levels, top to bottom" : "Levels, bottom to top"}>
-            {displayed.map(({ level, index }) => (
+        <SortableContext items={levels.map((l) => L(l.id))} strategy={verticalListSortingStrategy}>
+          <ol className="space-y-2" aria-label="Levels, bottom to top">
+            {levels.map((level, index) => (
               <LevelCard
                 key={level.id}
                 level={level}
@@ -164,14 +154,19 @@ export function LevelEditor({ onHighlight }: Props) {
                 partsByKey={partsByKey}
                 zRange={printed.get(level.id)}
                 levelOptions={levelOptions}
-                topFirst={topFirst}
                 onHighlight={onHighlight}
               />
             ))}
           </ol>
         </SortableContext>
       </DndContext>
-      {topFirst ? plate : addButton}
+      <button
+        type="button"
+        onClick={addLevel}
+        className="w-full rounded border border-dashed border-ink-700 py-1.5 text-sm text-ink-300 hover:border-accent-400 hover:text-ink-100"
+      >
+        + Add empty level on top
+      </button>
     </div>
   );
 }
@@ -183,7 +178,6 @@ interface LevelCardProps {
   partsByKey: Map<string, Part>;
   zRange: LevelPlan | undefined;
   levelOptions: LevelOption[];
-  topFirst: boolean;
   onHighlight: (keys: string[] | null) => void;
 }
 
@@ -192,8 +186,8 @@ interface LevelOption {
   label: string;
 }
 
-function LevelCard({ level, index, count, partsByKey, zRange, levelOptions, topFirst, onHighlight }: LevelCardProps) {
-  const { arrangement, moveLevel, removeLevel, setLevelThickness } = useProject();
+function LevelCard({ level, index, count, partsByKey, zRange, levelOptions, onHighlight }: LevelCardProps) {
+  const { arrangement, moveLevel, moveLevelToEnd, removeLevel, setLevelThickness } = useProject();
   const stackLevel = useStack((s) => s.result?.levels.find((l) => l.id === level.id));
   const minFeature = 2 * arrangement.settings.nozzle;
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: L(level.id) });
@@ -240,21 +234,18 @@ function LevelCard({ level, index, count, partsByKey, zRange, levelOptions, topF
             fallback={fallback}
             onChange={(mm) => setLevelThickness(level.id, mm)}
           />
-          {/* Arrows follow the list: ↑ moves up the list, whichever way it's flipped. */}
-          {(["up", "down"] as const).map((dir) => {
-            const towardTop = (dir === "up") === topFirst;
-            const target = towardTop ? index + 1 : index - 1;
-            return (
-              <IconButton
-                key={dir}
-                label={`Move ${title} ${towardTop ? "toward the top" : "toward the base"}`}
-                disabled={target < 0 || target >= count}
-                onClick={() => moveLevel(index, target)}
-              >
-                {dir === "up" ? "↑" : "↓"}
-              </IconButton>
-            );
-          })}
+          <IconButton label={`Move ${title} to the bottom of the stack`} disabled={index === 0} onClick={() => moveLevelToEnd(level.id, "bottom")}>
+            ⤒
+          </IconButton>
+          <IconButton label={`Move ${title} toward the base`} disabled={index === 0} onClick={() => moveLevel(index, index - 1)}>
+            ↑
+          </IconButton>
+          <IconButton label={`Move ${title} toward the top`} disabled={index === count - 1} onClick={() => moveLevel(index, index + 1)}>
+            ↓
+          </IconButton>
+          <IconButton label={`Move ${title} to the top of the stack`} disabled={index === count - 1} onClick={() => moveLevelToEnd(level.id, "top")}>
+            ⤓
+          </IconButton>
           {level.partKeys.length === 0 && (
             <IconButton label={`Delete empty ${title}`} onClick={() => removeLevel(level.id)}>
               ✕
@@ -479,27 +470,3 @@ function PrintInfo({ plan, onFix }: { plan: LevelPlan; onFix?: (mm: number) => v
   );
 }
 
-function ListOrderSwitch() {
-  const { listOrder, setListOrder } = useView();
-  const options = [
-    { value: "bottom-first", label: "Bottom first" },
-    { value: "top-first", label: "Top first" },
-  ] as const;
-  return (
-    <div role="radiogroup" aria-label="Levels list order (display only)" className="flex shrink-0 rounded-md border border-ink-700 p-0.5 text-xs">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          role="radio"
-          aria-checked={listOrder === o.value}
-          onClick={() => setListOrder(o.value)}
-          title="Changes only how the list is shown, not the print order"
-          className={`rounded px-2 py-0.5 ${listOrder === o.value ? "bg-ink-700 text-ink-50" : "text-ink-400 hover:text-ink-100"}`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}

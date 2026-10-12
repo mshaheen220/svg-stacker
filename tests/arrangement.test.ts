@@ -108,6 +108,21 @@ describe("store", () => {
     expect(useProject.getState().applySidecar(parseSidecar(sidecar))).toMatch(/saved for t.svg/);
   });
 
+  it("reverses the stack (twice restores it) and jumps a level to the top or bottom", () => {
+    const s = useProject.getState();
+    const original = keys(useProject.getState().arrangement);
+    s.reverseLevels();
+    expect(keys(useProject.getState().arrangement)).toEqual([...original].reverse());
+    s.reverseLevels();
+    expect(keys(useProject.getState().arrangement)).toEqual(original);
+
+    const black = useProject.getState().arrangement.levels.find((l) => l.partKeys[0] === "|#000000")!;
+    s.moveLevelToEnd(black.id, "bottom");
+    expect(keys(useProject.getState().arrangement)[0]).toBe("|#000000");
+    s.moveLevelToEnd(black.id, "top");
+    expect(keys(useProject.getState().arrangement).at(-1)).toBe("|#000000");
+  });
+
   it("autosaves to localStorage", () => {
     const saved = JSON.parse(localStorage.getItem("svg-stacker:project")!);
     expect(saved.state.fileName).toBe("t.svg");

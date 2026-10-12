@@ -29,9 +29,9 @@ Shapes are grouped into **parts**. Each part is one filament color in the finish
 
 The **Levels** panel on the right lists levels from the bottom (Level 1, printed first) to the top. Each level is printed in one filament color, and by default each part gets its own level in the order it was drawn.
 
-Prefer the topmost level first, like Inkscape's Layers panel? Use the **Bottom first / Top first** switch above the list. It only changes how the list is shown, never the print order, and your choice is remembered in this browser.
-
-- **Reorder levels:** drag a level by its ⠿ handle, or use the ↑ / ↓ arrows. The arrows move a level up or down the list as you see it. Their tooltips say whether that's toward the top or the base of the print. With the keyboard, focus the handle, press Space, move with the arrow keys, and press Space again to drop (Esc cancels).
+- **Reorder levels:** drag a level by its ⠿ handle, or use the ↑ / ↓ arrows.
+- **Jump a level to the top or bottom of the stack:** use ⤓ (to the top of the print) and ⤒ (to the base) on its card. To see "what if the black outline were the top layer", click ⤓ on the black level.
+- **Reverse the whole stack:** **⇅ Reverse stack** flips the print order of every level, so the top color prints first. The plate, if on, stays at the bottom. Press it again to get your original order back. With artwork whose first color is a big background shape, reversing puts that shape on top and covers everything else, so the per-level buttons are usually quicker for trying ideas. With the keyboard, focus the handle, press Space, move with the arrow keys, and press Space again to drop (Esc cancels).
 - **Move parts between levels:** drag a part's ⠿ handle onto another level, or use its **Move…** menu. The menu can also create a new level at the top or bottom. Putting several parts on one level prints them in the same filament. If their colors differ, you'll see a warning and the first part's color is used.
 - **Rename a part:** click its name and type. The name is used in OrcaSlicer. Clear it to go back to the default name.
 - **Leave a part out:** untick its checkbox. A level with no ticked parts isn't printed.

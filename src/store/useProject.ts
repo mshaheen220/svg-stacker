@@ -43,6 +43,10 @@ interface ProjectState {
   setStrokeMode: (shapeId: string, mode: StrokeMode) => void;
 
   moveLevel: (from: number, to: number) => void;
+  /** Reverses the print order of all levels (the plate stays at the bottom). Doing it twice restores the order. */
+  reverseLevels: () => void;
+  /** Moves a level to the very top or bottom of the stack. */
+  moveLevelToEnd: (id: string, end: "top" | "bottom") => void;
   /** Moves a part to `levelId` at `index` (end if omitted). levelId "new-top"/"new-bottom" creates a level. */
   movePart: (key: string, levelId: string, index?: number) => void;
   addLevel: () => void;
@@ -159,6 +163,16 @@ export const useProject = create<ProjectState>()(
             const [moved] = levels.splice(from, 1);
             levels.splice(Math.max(0, Math.min(levels.length, to)), 0, moved);
             return { ...a, levels };
+          }),
+
+        reverseLevels: () => updateArr((a) => ({ ...a, levels: [...a.levels].reverse() })),
+
+        moveLevelToEnd: (id, end) =>
+          updateArr((a) => {
+            const level = a.levels.find((l) => l.id === id);
+            if (!level) return a;
+            const rest = a.levels.filter((l) => l.id !== id);
+            return { ...a, levels: end === "top" ? [...rest, level] : [level, ...rest] };
           }),
 
         movePart: (key, levelId, index) =>
