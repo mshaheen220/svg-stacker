@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { version } from "../package.json";
 import { ArrangementPanel } from "./components/ArrangementPanel";
+import { ExportPanel } from "./components/ExportPanel";
 import { ImportSummary } from "./components/ImportSummary";
 import { LayersPanel } from "./components/LayersPanel";
 import { StrokesPanel } from "./components/StrokesPanel";
@@ -73,6 +74,7 @@ export default function App() {
           {parsed && <StrokesPanel />}
           {parsed && <LayersPanel />}
           {parsed && <SupportPanel />}
+          {parsed && <ExportPanel />}
           {parsed && <ArrangementPanel />}
         </aside>
 

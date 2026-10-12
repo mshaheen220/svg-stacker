@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { create } from "zustand";
 import type { LevelMesh } from "../lib/geometry/mesh";
 import { computeStack, type StackResult } from "../lib/geometry/stack";
@@ -36,8 +36,16 @@ export function useStackRunner() {
   const arrangement = useProject((s) => s.arrangement);
   const parts = useProject((s) => s.parts);
   const footprints = useProject((s) => s.footprints);
+  // Export options (swap command, bed size) live in the arrangement but don't
+  // change geometry; key the recompute on everything else.
+  const { export: _export, ...geometrySettings } = arrangement.settings;
+  void _export;
+  const geometryKey = JSON.stringify({ levels: arrangement.levels, parts: arrangement.parts, settings: geometrySettings });
+  const latest = useRef(arrangement);
+  latest.current = arrangement;
 
   useEffect(() => {
+    const arrangement = latest.current;
     if (parts.length === 0) {
       useStack.setState({ result: null, meshes: null, pending: false, meshesPending: false, error: null });
       return;
@@ -69,7 +77,7 @@ export function useStackRunner() {
       const req: StackRequest = { id, arrangement, parts, footprints: [...footprints] };
       worker.postMessage(req);
     }
-  }, [arrangement, parts, footprints]);
+  }, [geometryKey, parts, footprints]);
 }
 
 let worker: Worker | null | undefined;

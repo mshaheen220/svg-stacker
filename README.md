@@ -49,6 +49,7 @@ src/
                 thin-feature and floating-area checks
   lib/geometry/mesh.ts  manifold-3d (WASM) extrusion of each level's solid
                 into a watertight mesh (print coords, Z up, y flipped up)
+  lib/export/   threemf.ts (OrcaSlicer project 3MF), stl.ts (binary STL, zip)
   workers/      stack.worker.ts: computeStack, then buildMeshes, off the
                 main thread
   lib/parts.ts  shapes → parts (merge key "label|#color"), footprints
@@ -63,6 +64,8 @@ src/
                 lazy-loaded react-three-fiber 3D view, error boundary)
   hooks/        useTheme (day / night / system)
 tests/          vitest
+scripts/orca/   slice-check.sh: slice an export with the OrcaSlicer CLI and
+                report where each swap landed
 ```
 
 The parser walks the DOM itself instead of using `getComputedStyle`/`getScreenCTM`, so it behaves the same in the browser and in Node tests.
@@ -112,11 +115,31 @@ The worker answers each request twice: first `{kind: "stack"}` (2D is ready righ
 
 The WASM is loaded with `manifold-3d/manifold.wasm?url` and passed as `locateFile`. Node tests let it find the file itself, and that test file uses `// @vitest-environment node`. `Preview3D` (three + drei, about 0.9 MB) is `React.lazy`-loaded with the 3D tab. It rotates the Z-up print into three's Y-up, uses `flatShading` (manifold shares vertices across faces), and shows a per-level legend with PLA grams at 1.24 g/cm³.
 
+### 3MF export (OrcaSlicer format)
+
+The layout mirrors a project written by OrcaSlicer 2.4.2. I checked it against real projects in the author's library and against Orca's source.
+
+| File | Contents |
+| --- | --- |
+| `3D/3dmodel.model` | One assembly object (id = parts + 1) made of `<component p:path="/3D/Objects/object_1.model" objectid=i>` entries. The build item centers it on the bed: `1 0 0 0 1 0 0 0 1 bedX/2 bedY/2 0`. |
+| `3D/Objects/object_1.model` | One mesh `<object id=i>` per level. XY is centered on the origin, Z runs from the bed up. |
+| `Metadata/model_settings.config` | `<object>` name, plus `<part id=i subtype="normal_part">` with `name` ("3. hair med") and extruder 1 for every part. These names are what Orca's object list shows. |
+| `Metadata/custom_gcode_per_layer.xml` | `<layer top_z type extruder color extra gcode/>` entries and `<mode value="SingleExtruder"/>`. |
+| `[Content_Types].xml`, `_rels/.rels`, `3D/_rels/3dmodel.model.rels` | Standard OPC plumbing. |
+
+No `project_settings.config` is written, so Orca keeps the user's current printer, filament and process presets.
+
+**Swap semantics, from Orca's source:**
+- `CustomGCode::Type` is `ColorChange=0, PausePrint=1, ToolChange=2, Template=3, Custom=4`.
+- `print_z` is the first layer printed with the new filament. `ToolOrdering::assign_custom_gcodes` matches it to the layer whose band contains it (a midpoint test), and the G-code is emitted right after the layer change, before any extrusion on that layer. So `top_z` is the **top Z of the new level's first layer** (`StackLevel.firstLayerTopZ`).
+- **Type 0 is not used:** in Orca 2.4 the ColorChange emission block in `GCode.cpp` is `#if 0` ("BBS: inserting color gcode is removed"), so a single-extruder color change would emit nothing.
+- The exporter instead uses `Custom` (4), whose `extra` is emitted verbatim (`M117 Load L3 white\nM600` or `…\nM25`; newlines are written as `&#10;`), or `PausePrint` (1), which emits the printer profile's `machine_pause_gcode` (`M25 ;pause print` on the Creality Ender-3 V2 profile).
+
+**Verification:** `scripts/orca/slice-check.sh export.3mf any-orca-project.3mf` borrows a full `project_settings.config` from a project saved with your printer, slices it with the Orca CLI, and lists the layer and Z of every `M600`/`M25`/`M117`. On both samples, every swap landed on exactly the layer the app reports. `EXPORT_DIR=dir npx vitest run tests/export.test.ts` writes the sample 3MFs (set `EXPORT_SWAP` to choose the mode).
+
+**STL fallback:** binary STL per level, in print coordinates. Each level already sits at its Z, so importing all of them as parts of one object reassembles the stack.
+
 **Drag and drop:** one `DndContext` with prefixed ids (`L:` level, `P:` part, `D:` level drop zone). Pointer collision and the keyboard coordinate getter are both filtered so levels only target levels and parts only target parts or drop zones. Every drag action also has a button or select equivalent.
-
-### Planned layers (later milestones)
-
-- `lib/export/`: 3MF writer (`3D/3dmodel.model`, `Metadata/model_settings.config`, `Metadata/custom_gcode_per_layer.xml`, zipped with fflate) and per-level STL.
 
 ### Roadmap
 
@@ -126,7 +149,7 @@ The WASM is loaded with `manifold-3d/manifold.wasm?url` and passed as `locateFil
 4. ✅ Support fill, background plate, clearance, thin-feature warnings
 4½. ✅ Layer normalization: whole layers, swap points, opacity check
 5. ✅ 3D preview with a level scrubber
-6. 3MF and STL export
+6. ✅ 3MF and STL export (swaps embedded, verified with the OrcaSlicer CLI)
 7. Color-change embedding and printable summary
 
 ## Conventions

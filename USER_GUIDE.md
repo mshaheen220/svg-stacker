@@ -74,7 +74,28 @@ Switch the preview to the **3D** tab to see the finished piece. It's built from 
 - **Drag** to orbit, **scroll** to zoom, and **right-drag** (or two-finger drag) to pan. **Reset view** brings the camera back.
 - The **Levels 1–N** slider is shared with the 2D view. Drag it to watch the print build up color by color.
 - **Explode** spreads the levels apart vertically, so you can see each level's shape and the wedding-cake support underneath.
-- The legend lists each visible level with a rough filament estimate in grams of PLA, and the top bar shows the total size and weight.
+- The legend lists each visible level with an upper-bound filament estimate in grams of PLA (as if printed solid), and the top bar shows the total size.
 - Hover a level or part in the Levels panel to highlight it in 3D.
+
+## 7. Export to OrcaSlicer
+
+The **Export** section in the left panel creates the file you open in OrcaSlicer.
+
+1. Check the **Object name**. It becomes the object's name in Orca.
+2. Choose how **Filament swaps** are embedded:
+   - **M600 filament change:** the printer runs its own filament-change routine. This needs firmware with M600 support, such as Marlin with *Advanced Pause*. Many Ender-3 V2 firmwares have it, some stock ones don't.
+   - **M25 pause:** the printer pauses, you swap filament by hand, then resume from the screen. This works on stock Ender-3 V2 firmware when printing from the SD card.
+   - **Printer profile's pause:** uses your OrcaSlicer printer profile's pause command (M25 on the Ender-3 V2 profile). These show up as pause markers on Orca's layer slider, where you can edit them.
+   - **None:** no swaps in the file. Add them yourself in Orca using the layer numbers on each level card.
+
+   With M600 and M25, the printer's screen shows which filament to load next, for example "Load L3 white #ffffff".
+3. Set your **bed size** (220 × 220 mm for an Ender-3 V2). The object is centered on it, and you'll get a warning if it doesn't fit.
+4. Click **Download 3MF for OrcaSlicer** and open the file in Orca. You'll see one object whose parts are named after your levels ("1. skin", "2. brown", …), already stacked at the right heights. Your current printer, filament and process settings stay selected.
+
+**Important:** set Orca's **layer height** and **first layer height** to the values in **Layers & thickness** (0.2 / 0.2 by default). The swaps are placed for those layer heights.
+
+**STL fallback:** **Download all levels as STL** gives you a zip with one STL per level, and single levels are under **Single-level STLs**. Each STL keeps its height, so importing them all as parts of one object rebuilds the stack. You'd then add the pauses by hand.
+
+The gram figure in the 3D view assumes a 100% solid print, so it's an upper bound. Orca's estimate, with your infill, will be lower.
 
 *More sections (arranging levels, exporting, color changes) will be added as those features land.*

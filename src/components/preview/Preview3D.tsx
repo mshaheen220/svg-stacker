@@ -11,7 +11,7 @@ import { useView } from "../../store/useView";
 import { NumberSlider } from "../controls/NumberSlider";
 import { LevelScrubber } from "./LevelScrubber";
 
-/** PLA, for a rough filament estimate. */
+/** PLA density, for an upper-bound filament estimate (volume × density, i.e. 100% infill). */
 const PLA_G_PER_MM3 = 1.24 / 1000;
 
 interface Props {
@@ -59,7 +59,11 @@ export function Preview3D({ highlighted }: Props) {
           {meshesPending ? (
             <span className="text-accent-300">building meshes…</span>
           ) : (
-            meshes && `${result.widthMm.toFixed(1)} × ${result.heightMm.toFixed(1)} × ${result.heightZ.toFixed(2)} mm · ≈${totalGrams.toFixed(0)} g PLA`
+            meshes && (
+              <span title="Upper bound assuming 100% infill; OrcaSlicer's estimate will be lower.">
+                {result.widthMm.toFixed(1)} × {result.heightMm.toFixed(1)} × {result.heightZ.toFixed(2)} mm · ≤{totalGrams.toFixed(0)} g PLA if solid
+              </span>
+            )
           )}
         </span>
       </div>

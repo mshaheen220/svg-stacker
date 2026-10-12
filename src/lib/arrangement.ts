@@ -48,6 +48,17 @@ export interface Settings {
   /** Round every level to a whole number of layers. */
   snapToLayers: boolean;
   opacity: OpacitySettings;
+  export: ExportSettings;
+}
+
+export type SwapCommand = "m600" | "m25" | "printer-pause" | "none";
+
+export interface ExportSettings {
+  /** How filament swaps are embedded in the 3MF (see lib/export/threemf.ts). */
+  swap: SwapCommand;
+  /** Printer bed size (mm); the object is centered on it. */
+  bedX: number;
+  bedY: number;
 }
 
 /**
@@ -80,6 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
   firstLayerHeight: 0.2,
   snapToLayers: true,
   opacity: { enabled: true, minDark: 0.4, minLight: 1.2 },
+  export: { swap: "m600", bedX: 220, bedY: 220 },
 };
 
 export const PLATE_ID = "plate";
@@ -91,6 +103,7 @@ export function withDefaults(s: Partial<Settings> | undefined): Settings {
     ...s,
     plate: { ...DEFAULT_SETTINGS.plate, ...s?.plate },
     opacity: { ...DEFAULT_SETTINGS.opacity, ...s?.opacity },
+    export: { ...DEFAULT_SETTINGS.export, ...s?.export },
   };
 }
 
@@ -104,7 +117,7 @@ export function defaultArrangement(parts: Part[], settings: Settings = DEFAULT_S
   return {
     levels: parts.map((p) => ({ id: newLevelId(), partKeys: [p.key], thickness: null })),
     parts: {},
-    settings: { ...settings, plate: { ...settings.plate }, opacity: { ...settings.opacity } },
+    settings: { ...settings, plate: { ...settings.plate }, opacity: { ...settings.opacity }, export: { ...settings.export } },
   };
 }
 
@@ -316,6 +329,11 @@ export function parseSidecar(json: unknown): Sidecar {
           enabled: typeof s.opacity?.enabled === "boolean" ? s.opacity.enabled : d.opacity.enabled,
           minDark: num(s.opacity?.minDark, d.opacity.minDark, 0, 5),
           minLight: num(s.opacity?.minLight, d.opacity.minLight, 0, 5),
+        },
+        export: {
+          swap: (["m600", "m25", "printer-pause", "none"] as const).find((v) => v === s.export?.swap) ?? d.export.swap,
+          bedX: num(s.export?.bedX, d.export.bedX, 50, 1000),
+          bedY: num(s.export?.bedY, d.export.bedY, 50, 1000),
         },
       },
     },

@@ -1,6 +1,6 @@
 import { area, difference, EndType, FillRule, getBoundsPaths, inflatePaths, intersect, JoinType } from "clipper2-ts";
-import { partName, PLATE_ID, type Arrangement } from "../arrangement";
-import { planLevels } from "../layers";
+import { layerTopZ, partName, PLATE_ID, type Arrangement } from "../arrangement";
+import { planLevels, type SwapKind } from "../layers";
 import type { Part } from "../parts";
 import { regionAreaMm2, UNITS_PER_MM, unionRegions, type Region } from "./region";
 
@@ -24,6 +24,11 @@ export interface StackLevel {
   partColors: string[];
   zStart: number;
   zEnd: number;
+  /** 1-based slicer layer number of this level's first layer. */
+  layerStart: number;
+  /** Top Z of that first layer: the print_z OrcaSlicer uses for a filament swap. */
+  firstLayerTopZ: number;
+  swap: SwapKind;
   /** The level's printed cross-section. */
   solid: Region;
   /** What shows from above (solid minus everything above it). */
@@ -134,6 +139,9 @@ export function computeStack(arr: Arrangement, parts: Part[], footprints: Map<st
       partColors: l.partColors,
       zStart: l.zStart,
       zEnd: l.zEnd,
+      layerStart: l.layerStart,
+      firstLayerTopZ: layerTopZ(l.layerStart, settings),
+      swap: l.swap,
       solid: solids[i],
       visible: visibles[i],
       thin,
