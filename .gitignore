@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+*.tsbuildinfo
+coverage/
+
+# Environment
+.env
+.env.*
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Generated exports
+*.3mf
+*.stl
+
+# OS & editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp

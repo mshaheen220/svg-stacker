@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/* Day-theme overrides for the few places a mirrored ramp isn't enough. */
+@custom-variant day (&:where([data-theme="day"], [data-theme="day"] *));
+
+/*
+ * One "ink" ramp drives every surface/text color. Night is the default;
+ * day mirrors the ramp (50<->950, ...) so bg-ink-950 / text-ink-100 keep
+ * their background-vs-foreground relationship in both themes without
+ * per-usage dark: variants. Accent stays the same in both.
+ */
+@theme {
+  --color-ink-50: #f4f3fa;
+  --color-ink-100: #e6e4f2;
+  --color-ink-200: #c9c5e0;
+  --color-ink-300: #a49fc6;
+  --color-ink-400: #7f79a6;
+  --color-ink-500: #615b87;
+  --color-ink-600: #4a456b;
+  --color-ink-700: #383453;
+  --color-ink-800: #26233b;
+  --color-ink-900: #1a1829;
+  --color-ink-950: #100f1b;
+  --color-accent-300: #7ee0d6;
+  --color-accent-400: #3fc9bb;
+  --color-accent-500: #1aa39a;
+  --color-accent-600: #12827b;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+[data-theme="day"] {
+  color-scheme: light;
+  --color-ink-50: #100f1b;
+  --color-ink-100: #1a1829;
+  --color-ink-200: #26233b;
+  --color-ink-300: #383453;
+  --color-ink-400: #4a456b;
+  --color-ink-500: #615b87;
+  --color-ink-600: #7f79a6;
+  --color-ink-700: #c9c5e0;
+  --color-ink-800: #e6e4f2;
+  --color-ink-900: #f4f3fa;
+  --color-ink-950: #fbfbfe;
+  --color-accent-300: #12827b;
+  --color-accent-400: #12827b;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-ink-950 text-ink-100 antialiased;
+}
+
+input[type="range"] {
+  accent-color: var(--color-accent-500);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-700);
+  border-radius: 9999px;
+}

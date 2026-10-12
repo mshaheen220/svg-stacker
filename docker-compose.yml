@@ -1,0 +1,16 @@
+# Production-style: builds the static app and serves it with nginx.
+#
+#   docker compose up --build        → http://localhost:8181
+#
+# Hot-reloading dev server:
+#
+#   docker compose -f docker-compose.dev.yml up --build   → http://localhost:5181
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    image: svg-stacker:latest
+    ports:
+      - "8181:80"
+    restart: unless-stopped

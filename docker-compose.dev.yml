@@ -1,0 +1,13 @@
+# Vite dev server with hot reload. Source is bind-mounted; node_modules stays
+# inside the container (an anonymous volume) so the macOS host's modules
+# never shadow the Linux ones.
+services:
+  dev:
+    build:
+      context: .
+      target: dev
+    ports:
+      - "5181:5181"
+    volumes:
+      - .:/app
+      - /app/node_modules

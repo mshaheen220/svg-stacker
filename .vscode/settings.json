@@ -1,0 +1,38 @@
+{
+  "editor.formatOnSave": true,
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true
+  },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "workbench.colorCustomizations": {
+    "activityBar.activeBackground": "#4b3ea5",
+    "activityBar.activeBorder": "#e7e7e7",
+    "activityBar.background": "#4b3ea5",
+    "activityBar.foreground": "#e7e7e7",
+    "activityBar.inactiveForeground": "#e7e7e799",
+    "activityBarBadge.background": "#2e1511",
+    "activityBarBadge.foreground": "#e7e7e7",
+    "activityBarTop.activeBackground": "#4b3ea5",
+    "activityBarTop.activeBorder": "#e7e7e7",
+    "activityBarTop.background": "#4b3ea5",
+    "activityBarTop.foreground": "#e7e7e7",
+    "activityBarTop.inactiveForeground": "#e7e7e799",
+    "commandCenter.border": "#e7e7e799",
+    "commandCenter.foreground": "#e7e7e7",
+    "sash.hoverBorder": "#4b3ea5",
+    "statusBar.background": "#3a3080",
+    "statusBar.debuggingBackground": "#3a3080",
+    "statusBar.debuggingForeground": "#e7e7e7",
+    "statusBar.foreground": "#e7e7e7",
+    "statusBarItem.hoverBackground": "#4b3ea5",
+    "statusBarItem.remoteBackground": "#b95446",
+    "statusBarItem.remoteForeground": "#e7e7e7",
+    "titleBar.activeBackground": "#3a3080",
+    "titleBar.activeForeground": "#e7e7e7",
+    "titleBar.inactiveBackground": "#3a308099",
+    "titleBar.inactiveForeground": "#e7e7e799",
+    "statusBar.inactiveBackground": "#3a3080"
+  },
+  "peacock.color": "#3a3080"
+}
