@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { ImportSummary } from "./components/ImportSummary";
+import { PartsPanel } from "./components/PartsPanel";
 import { ThemeSwitcher } from "./components/ThemeSwitcher";
 import { FileDropzone } from "./components/controls/FileDropzone";
 import { NumberSlider } from "./components/controls/NumberSlider";
@@ -7,6 +9,7 @@ import { useProject } from "./store/useProject";
 
 export default function App() {
   const { fileName, parsed, error, tolerance, loadSvg, setTolerance } = useProject();
+  const [highlighted, setHighlighted] = useState<string | null>(null);
 
   return (
     <div className="flex h-full flex-col">
@@ -51,11 +54,12 @@ export default function App() {
             />
           </section>
           {parsed && <ImportSummary parsed={parsed} />}
+          <PartsPanel highlighted={highlighted} onHighlight={setHighlighted} />
         </aside>
 
         <main className="min-h-[60vh] flex-1 p-4 md:min-h-0">
           {parsed ? (
-            <Preview2D parsed={parsed} />
+            <Preview2D highlighted={highlighted} />
           ) : (
             <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-ink-800 text-sm text-ink-400">
               Import an SVG to get started.

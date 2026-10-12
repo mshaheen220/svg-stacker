@@ -4,7 +4,7 @@
 #
 # Hot-reloading dev server:
 #
-#   docker compose -f docker-compose.dev.yml up --build   → http://localhost:5181
+#   docker compose -f docker-compose.dev.yml up --build -V   → http://localhost:5181
 services:
   app:
     build:

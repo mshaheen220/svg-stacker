@@ -1,6 +1,9 @@
 # Vite dev server with hot reload. Source is bind-mounted; node_modules stays
 # inside the container (an anonymous volume) so the macOS host's modules
-# never shadow the Linux ones.
+# never shadow the Linux ones. Pass -V (--renew-anon-volumes) after adding
+# dependencies, or the old node_modules volume is reused:
+#
+#   docker compose -f docker-compose.dev.yml up --build -V
 services:
   dev:
     build:

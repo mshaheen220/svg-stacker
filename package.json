@@ -1,6 +1,6 @@
 {
   "name": "svg-stacker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Turn an SVG into a stacked, color-change-ready 3MF for OrcaSlicer.",
@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "clipper2-ts": "^2.0.1-18",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "svgpath": "^2.6.0",

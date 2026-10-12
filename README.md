@@ -8,7 +8,7 @@ End-user instructions are in [USER_GUIDE.md](USER_GUIDE.md).
 
 ```bash
 # Docker, hot reload        → http://localhost:5181
-docker compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up --build -V   # -V refreshes node_modules after dependency changes
 
 # Docker, production build  → http://localhost:8181
 docker compose up --build
@@ -40,6 +40,9 @@ src/
     colors.ts     CSS color parsing, friendly names ("teal")
     matrix.ts     transform parsing/composition
     units.ts      mm/in/pt/px (96 dpi) lengths
+  lib/geometry/ region.ts: clipper2-ts wrapper. Regions are integer µm Paths64
+                (outer +, holes -), fill-rule-aware fills, stroke outlines
+  lib/parts.ts  shapes → parts (merge key "label|#color"), footprints
   store/        zustand app state
   components/   UI (preview/, controls/)
   hooks/        useTheme (day / night / system)
@@ -50,15 +53,19 @@ The parser walks the DOM itself instead of using `getComputedStyle`/`getScreenCT
 
 Coordinates are millimetres, y-down, page origin. The flip to y-up happens at mesh time.
 
+### Parts
+
+Shapes merge into a part when they share the same Inkscape label (own label, or the enclosing Inkscape layer's) **and** color. The same label in different colors is split into "label (color name)". Unlabeled shapes merge by color and are named "teal #008080". A stroke can become its own geometry (a ring for closed paths, capped for open ones) colored by the stroke. Strokes under 0.2 mm default to *ignore* because auto-traced art often carries stale-colored hairlines. Default part order is the paint position of each part's first shape. The part key (`label|#color`) is what saved arrangements will refer to.
+
 ### Planned layers (later milestones)
 
-- `lib/geometry/`: clipper2-ts for fill-rule-aware unions, stroke outlines (including open paths), clearance offsets and thin-feature checks; manifold-3d (WASM) for watertight extrusion. These run in a Web Worker.
+- `lib/geometry/`: support-fill stacking, clearance offsets and thin-feature checks (clipper2-ts); manifold-3d (WASM) for watertight extrusion, run in a Web Worker.
 - `lib/export/`: 3MF writer (`3D/3dmodel.model`, `Metadata/model_settings.config`, `Metadata/custom_gcode_per_layer.xml`, zipped with fflate) and per-level STL.
 
 ### Roadmap
 
 1. ✅ Scaffold, plus import and 2D preview
-2. Grouping into parts (label/color merge, stroke handling)
+2. ✅ Grouping into parts (label/color merge, stroke handling)
 3. Level editor (drag-and-drop, thickness, rename, toggle, JSON sidecar, autosave)
 4. Support fill, background plate, clearance, thin-feature warnings
 5. 3D preview with a level scrubber
