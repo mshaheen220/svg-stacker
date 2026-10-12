@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 /** Preview UI state shared by the 2D and 3D views (not persisted). */
 interface ViewState {
-  tab: "2d" | "3d";
+  tab: "2d" | "3d" | "summary";
   /** Levels shown from the bottom; null = all (follows level count changes). */
   shownLevels: number | null;
   /** Extra vertical gap between levels in the 3D view (mm). */

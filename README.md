@@ -49,6 +49,8 @@ src/
                 thin-feature and floating-area checks
   lib/geometry/mesh.ts  manifold-3d (WASM) extrusion of each level's solid
                 into a watertight mesh (print coords, Z up, y flipped up)
+  lib/summary.ts  buildSummary(): print-order rows (action, layers, Orca Z,
+                filament, parts) + plain-text formatter
   lib/export/   threemf.ts (OrcaSlicer project 3MF), stl.ts (binary STL, zip)
   workers/      stack.worker.ts: computeStack, then buildMeshes, off the
                 main thread
@@ -145,6 +147,10 @@ No `project_settings.config` is written, so Orca keeps the user's current printe
 
 `reverseLevels()` reverses `arrangement.levels`, an involution, so a second press restores the order. `moveLevelToEnd(id, "top" | "bottom")` jumps one level. Thickness overrides travel with their level, and the base thickness always applies to whichever level ends up printed first. The plate isn't in `levels`, so it always stays at the bottom.
 
+### Color-change summary
+
+`buildSummary()` derives everything from `planLevels()`, the same source the stack and 3MF use. `Orca Z` is `layerTopZ(layerStart)`, which is exactly the 3MF's `top_z`. `tests/export.test.ts` asserts that the summary and `swapEntries()` agree on every swap. The **Color changes** tab renders it on screen. A second copy (`PrintableSummary`) is rendered at the app root as `hidden print:block` while the rest of the app is `print:hidden`, so `window.print()` gives a clean light page from any tab. Swatches use `print-color-adjust: exact`.
+
 ### Roadmap
 
 1. ✅ Scaffold, plus import and 2D preview
@@ -154,7 +160,7 @@ No `project_settings.config` is written, so Orca keeps the user's current printe
 4½. ✅ Layer normalization: whole layers, swap points, opacity check
 5. ✅ 3D preview with a level scrubber
 6. ✅ 3MF and STL export (swaps embedded, verified with the OrcaSlicer CLI)
-7. Color-change embedding and printable summary
+7. ✅ Printable color-change summary (and swap embedding, done in 6)
 
 ## Conventions
 

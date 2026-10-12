@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { useView } from "../../store/useView";
+import { ColorChangeSummary } from "../ColorChangeSummary";
 import { Preview2D } from "./Preview2D";
 import { PreviewErrorBoundary } from "./PreviewErrorBoundary";
 
@@ -9,6 +10,7 @@ const Preview3D = lazy(() => import("./Preview3D").then((m) => ({ default: m.Pre
 const TABS = [
   { id: "2d", label: "2D" },
   { id: "3d", label: "3D" },
+  { id: "summary", label: "Color changes" },
 ] as const;
 
 export function PreviewPanel({ highlighted }: { highlighted: string[] | null }) {
@@ -37,6 +39,8 @@ export function PreviewPanel({ highlighted }: { highlighted: string[] | null }) 
         <PreviewErrorBoundary resetKey={tab}>
         {tab === "2d" ? (
           <Preview2D highlighted={highlighted} />
+        ) : tab === "summary" ? (
+          <ColorChangeSummary />
         ) : (
           <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-ink-400">Loading 3D viewer…</div>}>
             <Preview3D highlighted={highlighted} />

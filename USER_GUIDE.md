@@ -100,4 +100,33 @@ The **Export** section in the left panel creates the file you open in OrcaSlicer
 
 The gram figure in the 3D view assumes a 100% solid print, so it's an upper bound. Orca's estimate, with your infill, will be lower.
 
-*More sections (arranging levels, exporting, color changes) will be added as those features land.*
+## 8. Color-change summary
+
+Open the **Color changes** tab above the preview for a checklist of the whole print, in the order it prints:
+
+| Column | Meaning |
+| --- | --- |
+| **Level** | Level number (1 = base). |
+| **Action** | *Load to start*, *Swap before layer N*, or *Keep printing* (same filament as the level below). |
+| **Layers** | First–last layer of the level, and how many layers it has. |
+| **Orca Z** | Height of the level's first layer, as shown on OrcaSlicer's layer slider. This is where the swap happens. |
+| **Z range** | Where the level starts and ends, in mm. |
+| **Filament** | The color to load. |
+| **Parts** | What's on the level. |
+
+Above the table: the number of swaps and layers, whether swaps are embedded in the 3MF (and how), and the filaments in the order you'll need them.
+
+- **🖨 Print** prints just the summary on a plain white page, with a ☐ to tick off at each swap. You can print from any tab.
+- **Copy as text** copies a plain-text version for your notes.
+
+The summary always matches the exported 3MF. If you chose **None** for filament swaps, use this table to add pauses in OrcaSlicer by hand at the listed layers.
+
+## Quick recipe
+
+1. Import the SVG and check the **Print** preview.
+2. Arrange levels: drag, or use ⤒ to put a color on top. Set thicknesses.
+3. Set **Layer height** and **First layer** to match Orca, then click **Normalize all levels**.
+4. Optionally turn on the plate, set a target width, and check for ⚠ warnings.
+5. Look it over in **3D**.
+6. **Download 3MF**, open it in OrcaSlicer, check the layer heights, and slice.
+7. **Print** the color-change summary and keep it next to the printer.

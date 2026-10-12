@@ -10,6 +10,7 @@ import { buildMeshes } from "../src/lib/geometry/mesh";
 import { computeStack } from "../src/lib/geometry/stack";
 import { groupParts, partFootprint } from "../src/lib/parts";
 import { parseSvgText } from "../src/lib/svg/parse";
+import { buildSummary } from "../src/lib/summary";
 import { readSample } from "./samples";
 
 let dom: JSDOM;
@@ -85,6 +86,20 @@ describe("build3mf", () => {
     // Plate (white) → white level: no swap. Base = 0.28 + 9 × 0.2 = 2.08.
     expect(stack.levels.map((l) => l.swap)).toEqual(["start", "same", "swap", "swap"]);
     expect(swapEntries(stack, "m600").map((s) => s.topZ)).toEqual([3.28, 4.28]);
+  });
+
+  it("agrees with the color-change summary on every swap", async () => {
+    const doc = parseSvgText(SIMPLE, { tolerance: 0.05 });
+    const parts = groupParts(doc, {});
+    const byId = new Map(doc.shapes.map((s) => [s.id, s]));
+    const footprints = new Map(parts.map((p) => [p.key, partFootprint(p, byId)]));
+    const arr = defaultArrangement(parts, { ...DEFAULT_SETTINGS, firstLayerHeight: 0.24, layerHeight: 0.16, plate: { enabled: true, margin: 2, color: "#ff0000" } });
+    const stack = computeStack(arr, parts, footprints);
+    const summary = buildSummary(arr, parts);
+    const fromSummary = summary.rows.filter((r) => r.action === "swap").map((r) => [r.number, r.swapZ]);
+    const from3mf = swapEntries(stack, "m600").map((s) => [s.level.number, s.topZ]);
+    expect(from3mf).toEqual(fromSummary);
+    expect(from3mf.length).toBe(3);
   });
 });
 
