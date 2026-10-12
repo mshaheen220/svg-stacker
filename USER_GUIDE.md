@@ -66,7 +66,7 @@ The **Layers & thickness** section of the left panel makes sure the stack prints
   - **load … to start:** the filament to load before printing.
   - **⇄ swap to … before layer N:** where the printer should pause for the filament change.
   - **same filament as below, no swap:** two adjacent levels in the same color. You might merge them.
-- **Opacity check:** a color only shows its own level's thickness on top of the level below. Light colors over dark ones are translucent when thin, for example white over black or yellow over brown. When a level is too thin to hide the color below it, its card shows a ⚠ with the thickness it needs. Click **Fix** to raise that level, or **Normalize all levels** to fix every level at once. Levels are only ever made thicker, never thinner.
+- **Opacity check:** a color only shows its own level's thickness on top of the level below. Light colors over dark ones are translucent when thin, for example white over black or yellow over brown. When a level is too thin to hide the color below it, its card shows a ⚠ with the thickness it needs. Click **Fix** to raise that level, or **Normalize all levels** to fix every level at once. Levels are only ever made thicker, never thinner. A short note says what changed. It disappears after a few seconds, or as soon as you change anything else.
   - **Dark colors need** (default 0.4 mm) and **White over black needs** (default 1.2 mm) set the range. Other color pairs fall in between, depending on how light the top color is and how much darker the color under it is. If your filaments are thin or translucent, raise the white-over-black value and normalize again.
 
 ## 6. 3D preview

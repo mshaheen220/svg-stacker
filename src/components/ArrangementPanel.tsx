@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseSidecar } from "../lib/arrangement";
 import { useProject } from "../store/useProject";
 import { baseName, downloadBlob } from "../utils/download";
@@ -8,6 +8,13 @@ export function ArrangementPanel() {
   const { fileName, exportSidecar, applySidecar, resetArrangement } = useProject();
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "warn" | "error"; text: string } | null>(null);
+
+  // Success notes fade on their own; warnings and errors stay until dismissed.
+  useEffect(() => {
+    if (message?.kind !== "ok") return;
+    const timer = setTimeout(() => setMessage(null), 6000);
+    return () => clearTimeout(timer);
+  }, [message]);
 
   const save = () => {
     const json = JSON.stringify(exportSidecar(), null, 2);
@@ -63,8 +70,8 @@ export function ArrangementPanel() {
         />
         {message && (
           <p
-            role="status"
-            className={`rounded border px-2 py-1 text-xs ${
+            role={message.kind === "ok" ? "status" : "alert"}
+            className={`flex items-start gap-2 rounded border px-2 py-1 text-xs ${
               message.kind === "error"
                 ? "border-red-500/40 bg-red-500/10 text-red-400 day:text-red-700"
                 : message.kind === "warn"
@@ -72,7 +79,10 @@ export function ArrangementPanel() {
                   : "border-accent-500/40 bg-accent-500/10 text-accent-300"
             }`}
           >
-            {message.text}
+            <span className="flex-1">{message.text}</span>
+            <button type="button" onClick={() => setMessage(null)} aria-label="Dismiss message" className="shrink-0 opacity-70 hover:opacity-100">
+              ✕
+            </button>
           </p>
         )}
       </div>

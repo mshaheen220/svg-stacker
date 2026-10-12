@@ -1,22 +1,37 @@
-import { useState } from "react";
-import { THICKNESS_MIN } from "../lib/arrangement";
+import { useEffect, useState } from "react";
+import { THICKNESS_MIN, type Arrangement } from "../lib/arrangement";
 import { useProject } from "../store/useProject";
 import { NumberSlider } from "./controls/NumberSlider";
 import { Toggle } from "./controls/Toggle";
+
+/** How long the Normalize result stays visible. */
+const MESSAGE_MS = 6000;
 
 /** Slicer layer heights, level thickness defaults, and the opacity check. */
 export function LayersPanel() {
   const { arrangement, setSettings, normalize } = useProject();
   const s = arrangement.settings;
-  const [message, setMessage] = useState<string | null>(null);
+  // The result describes one specific arrangement; it's hidden as soon as
+  // anything changes (so it's never stale) or after a few seconds.
+  const [message, setMessage] = useState<{ text: string; for: Arrangement } | null>(null);
+  const visible = message && message.for === arrangement ? message.text : null;
+
+  useEffect(() => {
+    if (!message) return;
+    const timer = setTimeout(() => setMessage(null), MESSAGE_MS);
+    return () => clearTimeout(timer);
+  }, [message]);
 
   const runNormalize = () => {
     const changes = normalize();
-    setMessage(
-      changes.length === 0
-        ? "Every level is already thick enough."
-        : `Raised ${changes.map((c) => `level ${c.number} (${c.from.toFixed(2)} → ${c.to.toFixed(2)} mm)`).join(", ")}.`,
-    );
+    setMessage({
+      text:
+        changes.length === 0
+          ? "Every level is already thick enough."
+          : `Raised ${changes.map((c) => `level ${c.number} (${c.from.toFixed(2)} → ${c.to.toFixed(2)} mm)`).join(", ")}.`,
+      // normalize() updates the store synchronously; tie the message to the result.
+      for: useProject.getState().arrangement,
+    });
   };
 
   return (
@@ -90,9 +105,9 @@ export function LayersPanel() {
             >
               Normalize all levels
             </button>
-            {message && (
+            {visible && (
               <p role="status" className="text-xs text-accent-300">
-                {message}
+                {visible}
               </p>
             )}
           </div>
