@@ -25,6 +25,24 @@
   --color-accent-400: #3fc9bb;
   --color-accent-500: #1aa39a;
   --color-accent-600: #12827b;
+  --animate-fade-in: fade-in 0.4s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in {
+    animation: none;
+  }
 }
 
 :root {

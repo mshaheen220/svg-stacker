@@ -2,6 +2,10 @@
 
 SVG Stacker turns a colored SVG (for example a logo or an avatar drawn in Inkscape) into a stacked sign you can print on a single-extruder printer with manual filament changes. Each color gets its own level. Every level is solid under the levels above it, so nothing floats.
 
+## Tips
+
+A tips bar at the top of the app cycles through short tips on preparing SVGs, arranging levels, slicing and printing. Use ‹ › to step through them, ⏸ to stop the rotation, or ✕ to collapse the bar to a small **💡 Tips** button. The app remembers whether you collapsed it. The same tips also appear on the Mashghal workshop dashboard.
+
 ## 1. Import your SVG
 
 Click **Choose SVG…** or drop a file onto the box. The preview shows exactly what was understood from the file. Tick **Show flattened outlines** to see the polygon outlines that will be printed.

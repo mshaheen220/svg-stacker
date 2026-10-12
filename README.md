@@ -49,6 +49,7 @@ src/
                 thin-feature and floating-area checks
   lib/geometry/mesh.ts  manifold-3d (WASM) extrusion of each level's solid
                 into a watertight mesh (print coords, Z up, y flipped up)
+  tips.ts       the tip list (single source): in-app tips bar + /api/tips/
   lib/summary.ts  buildSummary(): print-order rows (action, layers, Orca Z,
                 filament, parts) + plain-text formatter
   lib/export/   threemf.ts (OrcaSlicer project 3MF), stl.ts (binary STL, zip)
@@ -146,6 +147,18 @@ No `project_settings.config` is written, so Orca keeps the user's current printe
 **List order:** `arrangement.levels` is stored bottom-first (index 0 = base), but `LevelEditor` renders it reversed so the list mirrors the design (top of the print at the top). Indices passed to cards are always real. `onDragEnd` resolves positions by id, so drag-and-drop and the keyboard getter need no special casing. ↑/⤒ move toward the top of the stack, and the plate card renders last.
 
 `reverseLevels()` reverses `arrangement.levels`, an involution, so a second press restores the order. `moveLevelToEnd(id, "top" | "bottom")` jumps one level. Thickness overrides travel with their level, and the base thickness always applies to whichever level ends up printed first. The plate isn't in `levels`, so it always stays at the bottom.
+
+### Tips API (Mashghal dashboard)
+
+`GET /api/tips/` (with or without the trailing slash) returns `{ "tips": [{ "category", "text" }] }`. That's the tip-source format the [Mashghal](https://github.com/mshaheen220/Mashghal) dashboard aggregates from each workshop app. Categories: `preparing`, `arranging`, `slicing`, `printing`.
+
+There's no backend, so the endpoint comes from `tipsApi()` in `vite.config.ts`:
+- **dev / preview:** Vite middleware answers from `src/tips.ts`.
+- **build:** the same JSON is emitted to `dist/api/tips/index.json`, which `docker/nginx.conf` serves for `/api/tips/`.
+
+CORS is `*` in both, with OPTIONS answered by 204, because the dashboard fetches tips from the browser. It's read-only public data, the same as chocolate-mold-factory's `cors()`. The in-app `TipsPanel` imports `src/tips.ts` directly, so there's one list and no client/server copies to keep in sync. `tests/tips.test.ts` pins the response shape.
+
+Mashghal registration (in that repo's `src/config/apps.js`): `id: "svg-stacker"`, `containers: ["svg-stacker-app-1"]`, link `http://localhost:8181`, `tipsUrl: "http://localhost:8181/api/tips/"`, icon `public/icons/svg-stacker.svg`. Tips are only reachable while the production container (`docker compose up`, port 8181) is running.
 
 ### Color-change summary
 

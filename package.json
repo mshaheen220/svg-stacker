@@ -1,6 +1,6 @@
 {
   "name": "svg-stacker",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "Turn an SVG into a stacked, color-change-ready 3MF for OrcaSlicer.",

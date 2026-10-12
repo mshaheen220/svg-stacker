@@ -8,6 +8,7 @@ import { LayersPanel } from "./components/LayersPanel";
 import { StrokesPanel } from "./components/StrokesPanel";
 import { SupportPanel } from "./components/SupportPanel";
 import { ThemeSwitcher } from "./components/ThemeSwitcher";
+import { TipsPanel } from "./components/TipsPanel";
 import { FileDropzone } from "./components/controls/FileDropzone";
 import { NumberSlider } from "./components/controls/NumberSlider";
 import { LevelEditor } from "./components/levels/LevelEditor";
@@ -38,14 +39,18 @@ export default function App() {
         </div>
       )}
       <div className="flex min-h-full flex-col lg:h-full print:hidden">
-        <header className="flex items-center justify-between gap-3 border-b border-ink-800 px-4 py-2">
-          <div className="flex items-baseline gap-2">
+        <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-ink-800 px-4 py-2">
+          <div className="flex shrink-0 items-baseline gap-2">
             <h1 className="text-lg font-semibold tracking-tight">
               <span className="text-accent-400">SVG</span> Stacker
             </h1>
             <span className="text-xs text-ink-400" aria-label={`Version ${version}`}>
               v{version}
             </span>
+          </div>
+          {/* Tips take the middle on wide screens and their own row on phones. */}
+          <div className="order-last flex w-full min-w-0 justify-end md:order-none md:w-auto md:flex-1">
+            <TipsPanel />
           </div>
           <ThemeSwitcher />
         </header>
