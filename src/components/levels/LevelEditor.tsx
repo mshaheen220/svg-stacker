@@ -16,7 +16,9 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useMemo, type ReactNode } from "react";
-import { isPartEnabled, partName, printedLevels, type Level } from "../../lib/arrangement";
+import { isPartEnabled, partName, PLATE_ID, type Level } from "../../lib/arrangement";
+import { planLevels, type LevelPlan } from "../../lib/layers";
+import { colorName } from "../../lib/svg/colors";
 import type { Part } from "../../lib/parts";
 import type { StackLevel } from "../../lib/geometry/stack";
 import { useProject } from "../../store/useProject";
@@ -57,7 +59,7 @@ interface Props {
 export function LevelEditor({ onHighlight }: Props) {
   const { arrangement, parts, moveLevel, movePart, addLevel } = useProject();
   const partsByKey = useMemo(() => new Map(parts.map((p) => [p.key, p])), [parts]);
-  const printed = useMemo(() => new Map(printedLevels(arrangement).map((p) => [p.id, p])), [arrangement]);
+  const printed = useMemo(() => new Map(planLevels(arrangement, partsByKey).map((p) => [p.id, p])), [arrangement, partsByKey]);
   const levels = arrangement.levels;
 
   const sensors = useSensors(
@@ -117,7 +119,7 @@ export function LevelEditor({ onHighlight }: Props) {
       <p className="text-xs text-ink-400">
         Bottom (printed first) to top. Drag the ⠿ handles, or use the arrows and “Move to” menus.
       </p>
-      {arrangement.settings.plate.enabled && <PlateCard />}
+      {arrangement.settings.plate.enabled && printed.get(PLATE_ID) && <PlateCard plan={printed.get(PLATE_ID)!} />}
       <DndContext
         sensors={sensors}
         collisionDetection={collision}
@@ -157,7 +159,7 @@ interface LevelCardProps {
   index: number;
   count: number;
   partsByKey: Map<string, Part>;
-  zRange: ReturnType<typeof printedLevels>[number] | undefined;
+  zRange: LevelPlan | undefined;
   onHighlight: (keys: string[] | null) => void;
 }
 
@@ -221,6 +223,7 @@ function LevelCard({ level, index, count, partsByKey, zRange, onHighlight }: Lev
             </IconButton>
           )}
         </span>
+        {zRange && <PrintInfo plan={zRange} onFix={(mm) => setLevelThickness(level.id, mm)} />}
         {stackLevel && <LevelWarnings level={stackLevel} minFeature={minFeature} />}
         {colors.length > 1 && (
           <p className="w-full text-xs text-amber-300 day:text-amber-700">
@@ -349,10 +352,10 @@ function LevelWarnings({ level, minFeature }: { level: StackLevel; minFeature: n
   );
 }
 
-function PlateCard() {
+function PlateCard({ plan }: { plan: LevelPlan }) {
   const { arrangement } = useProject();
   const stackLevel = useStack((s) => s.result?.levels.find((l) => l.isPlate));
-  const { plate, baseThickness, nozzle } = arrangement.settings;
+  const { plate, nozzle } = arrangement.settings;
   return (
     <div className="rounded-lg border border-ink-800 bg-ink-900/70 px-2 py-1.5" aria-label="Level 1, background plate">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -360,10 +363,70 @@ function PlateCard() {
         <span className="text-sm font-medium">
           Level 1 <span className="text-xs font-normal text-ink-400">(plate)</span>
         </span>
-        <span className="text-xs text-ink-400">Z 0.00–{baseThickness.toFixed(2)}</span>
+        <span className="text-xs text-ink-400">
+          Z {plan.zStart.toFixed(2)}–{plan.zEnd.toFixed(2)}
+        </span>
         <span className="ml-auto text-xs text-ink-400">margin {plate.margin} mm · set in Support &amp; size</span>
+        <PrintInfo plan={plan} />
         {stackLevel && <LevelWarnings level={stackLevel} minFeature={2 * nozzle} />}
       </div>
     </div>
+  );
+}
+
+/**
+ * Layer range, the filament swap before this level, snapping notes, and
+ * the opacity check (with a one-click fix).
+ */
+function PrintInfo({ plan, onFix }: { plan: LevelPlan; onFix?: (mm: number) => void }) {
+  const layers =
+    Number.isInteger(plan.layerCount) || Math.abs(plan.layerCount - Math.round(plan.layerCount)) < 1e-6
+      ? `layers ${plan.layerStart}–${plan.layerStart + Math.round(plan.layerCount) - 1} (${Math.round(plan.layerCount)})`
+      : `≈${plan.layerCount.toFixed(1)} layers from ${plan.layerStart}`;
+  const snapped = Math.abs(plan.requested - plan.thickness) > 1e-6;
+  const name = `${colorName(plan.color)} ${plan.color}`;
+  return (
+    <>
+      <p className="w-full text-xs text-ink-400">
+        {layers}
+        {snapped && (
+          <span title="Rounded to whole layers">
+            {" "}
+            · {plan.requested.toFixed(2)} → {plan.thickness.toFixed(2)} mm
+          </span>
+        )}
+        {" · "}
+        {plan.swap === "start" && <span>load {name} to start</span>}
+        {plan.swap === "swap" && (
+          <span className="text-accent-300">
+            ⇄ swap to {name} before layer {plan.layerStart}
+          </span>
+        )}
+        {plan.swap === "same" && <span>same filament as below, no swap</span>}
+      </p>
+      {!plan.aligned && (
+        <p className="w-full text-xs text-amber-300 day:text-amber-700">
+          ⚠ Starts mid-layer (Z {plan.zStart.toFixed(2)}), so the color change can’t happen exactly here. Turn on “Whole layers only”.
+        </p>
+      )}
+      {plan.showThrough && plan.minOpaque != null && (
+        <p className="flex w-full items-center gap-2 text-xs text-amber-300 day:text-amber-700">
+          <span>
+            ⚠ {plan.thickness.toFixed(2)} mm of {colorName(plan.color)} may let the {colorName(plan.belowColor!)} below show through;
+            needs {plan.minOpaque.toFixed(2)} mm.
+          </span>
+          {onFix && (
+            <button
+              type="button"
+              onClick={() => onFix(plan.minOpaque!)}
+              className="shrink-0 rounded border border-amber-500/50 px-1.5 py-0.5 hover:bg-amber-500/10"
+              aria-label={`Raise level ${plan.number} to ${plan.minOpaque.toFixed(2)} mm`}
+            >
+              Fix
+            </button>
+          )}
+        </p>
+      )}
+    </>
   );
 }

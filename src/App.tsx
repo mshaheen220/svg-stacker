@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { version } from "../package.json";
 import { ArrangementPanel } from "./components/ArrangementPanel";
 import { ImportSummary } from "./components/ImportSummary";
+import { LayersPanel } from "./components/LayersPanel";
 import { StrokesPanel } from "./components/StrokesPanel";
 import { SupportPanel } from "./components/SupportPanel";
 import { ThemeSwitcher } from "./components/ThemeSwitcher";
@@ -9,16 +10,19 @@ import { FileDropzone } from "./components/controls/FileDropzone";
 import { NumberSlider } from "./components/controls/NumberSlider";
 import { LevelEditor } from "./components/levels/LevelEditor";
 import { Preview2D } from "./components/preview/Preview2D";
-import { printedLevels } from "./lib/arrangement";
+import { planLevels } from "./lib/layers";
 import { useProject } from "./store/useProject";
 import { useStack, useStackRunner } from "./store/useStack";
 
 export default function App() {
-  const { fileName, parsed, error, tolerance, arrangement, loadSvg, setTolerance } = useProject();
+  const { fileName, parsed, error, tolerance, arrangement, parts, loadSvg, setTolerance } = useProject();
   const [highlighted, setHighlighted] = useState<string[] | null>(null);
   useStackRunner();
   const stack = useStack((s) => s.result);
-  const printed = printedLevels(arrangement);
+  const printed = useMemo(() => planLevels(arrangement, new Map(parts.map((p) => [p.key, p]))), [arrangement, parts]);
+  const showThrough = printed.filter((l) => l.showThrough).length;
+  const misaligned = printed.filter((l) => !l.aligned).length;
+  const swaps = printed.filter((l) => l.swap === "swap").length;
   const totalHeight = printed.at(-1)?.zEnd ?? 0;
   const thinLevels = stack?.levels.filter((l) => l.thinAreaMm2 > 0).length ?? 0;
   const floatingLevels = stack?.levels.filter((l) => l.unsupportedAreaMm2 >= 0.01).length ?? 0;
@@ -67,6 +71,7 @@ export default function App() {
           </section>
           {parsed && <ImportSummary parsed={parsed} />}
           {parsed && <StrokesPanel />}
+          {parsed && <LayersPanel />}
           {parsed && <SupportPanel />}
           {parsed && <ArrangementPanel />}
         </aside>
@@ -92,6 +97,16 @@ export default function App() {
               </h2>
               <span className="text-xs text-ink-400">Total height {totalHeight.toFixed(2)} mm</span>
             </div>
+            <p className="text-xs text-ink-400">
+              {swaps} filament swap{swaps === 1 ? "" : "s"} · {printed.at(-1) ? printed.at(-1)!.layerStart + Math.ceil(printed.at(-1)!.layerCount) - 1 : 0} layers at{" "}
+              {arrangement.settings.layerHeight} mm
+            </p>
+            {(showThrough > 0 || misaligned > 0) && (
+              <p role="status" className="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-300 day:text-amber-700">
+                {showThrough > 0 && `${showThrough} level${showThrough === 1 ? " is" : "s are"} too thin to hide the color below (use Fix or Normalize all levels). `}
+                {misaligned > 0 && `${misaligned} level${misaligned === 1 ? " starts" : "s start"} mid-layer.`}
+              </p>
+            )}
             {(thinLevels > 0 || floatingLevels > 0) && (
               <p role="status" className="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-300 day:text-amber-700">
                 {floatingLevels > 0 && `${floatingLevels} level${floatingLevels === 1 ? " has" : "s have"} floating areas. `}

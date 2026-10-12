@@ -42,6 +42,8 @@ src/
     units.ts      mm/in/pt/px (96 dpi) lengths
   lib/geometry/ region.ts: clipper2-ts wrapper. Regions are integer µm Paths64
                 (outer +, holes -), fill-rule-aware fills, stroke outlines
+  lib/layers.ts planLevels(): filament color per level, swap points, and
+                the opacity check; normalizeArrangement()
   lib/geometry/stack.ts  arrangement → printed solids: scaling to target
                 width, support fill, plate, clearance, visible regions,
                 thin-feature and floating-area checks
@@ -75,6 +77,18 @@ An `Arrangement` is an ordered list of levels (index 0 = bottom). Each level hol
 
 **Autosave:** the localStorage key is `svg-stacker:project`. Persist's `merge` re-derives parse/parts on hydration. Storage errors such as quota or private mode are swallowed.
 
+### Layers, swaps and opacity
+
+`printedLevels()` owns all Z math. With `snapToLayers` on, the first printed level is `firstLayerHeight + n·layerHeight` and the others are `n·layerHeight`, rounded to the nearest whole layer with at least one. That puts every level boundary exactly on a layer boundary. Each level also carries `layerStart` (the 1-based slicer layer number of its first layer), `layerCount`, `requested` (before snapping) and `aligned`. Values are rounded to 1e-6 so floating-point drift never misaligns a boundary.
+
+`planLevels()` adds each level's filament color (first enabled part, or the plate color) and its swap kind: `start` (the first level), `swap` (pause before `layerStart`) or `same` (same filament as the level below, no pause). It also adds the opacity requirement:
+
+```
+minOpaque = minDark + (minLight − minDark) · L*top/100 · min(1, (max(0, L*top − L*below) + ½·Δchroma) / 100)
+```
+
+A darker color underneath counts fully, a hue difference counts half, and a lighter color underneath barely counts. With snapping on, the result is rounded **up** to whole layers. `normalizeArrangement()` only ever raises levels, writing per-level overrides.
+
 ### Stacking (`computeStack`)
 
 Inputs are the arrangement, the parts and their footprints (SVG page mm). Output regions are in **final print mm** (integer µm), scaled to `targetWidth` (which includes plate margins), with the bounding box at (0, 0). Y is still down.
@@ -99,6 +113,7 @@ On detailed art this takes about 200–350 ms, so `useStackRunner` (mounted once
 2. ✅ Grouping into parts (label/color merge, stroke handling)
 3. ✅ Level editor (drag-and-drop, thickness, rename, toggle, JSON sidecar, autosave)
 4. ✅ Support fill, background plate, clearance, thin-feature warnings
+4½. ✅ Layer normalization: whole layers, swap points, opacity check
 5. 3D preview with a level scrubber
 6. 3MF and STL export
 7. Color-change embedding and printable summary

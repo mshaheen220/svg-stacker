@@ -42,6 +42,23 @@ export interface Settings {
   targetWidth: number | null;
   /** Nozzle diameter (mm); features narrower than 2× this are flagged. */
   nozzle: number;
+  /** Slicer layer heights (mm). */
+  layerHeight: number;
+  firstLayerHeight: number;
+  /** Round every level to a whole number of layers. */
+  snapToLayers: boolean;
+  opacity: OpacitySettings;
+}
+
+/**
+ * Minimum color thickness so the level below doesn't show through. The
+ * requirement scales from `minDark` (dark color, or a color over a similar
+ * one) up to `minLight` (white over black).
+ */
+export interface OpacitySettings {
+  enabled: boolean;
+  minDark: number;
+  minLight: number;
 }
 
 export interface Arrangement {
@@ -59,13 +76,22 @@ export const DEFAULT_SETTINGS: Settings = {
   plate: { enabled: false, margin: 3, color: "#ffffff" },
   targetWidth: null,
   nozzle: 0.4,
+  layerHeight: 0.2,
+  firstLayerHeight: 0.2,
+  snapToLayers: true,
+  opacity: { enabled: true, minDark: 0.4, minLight: 1.2 },
 };
 
 export const PLATE_ID = "plate";
 
 /** Fills in settings missing from older autosaves/sidecars. */
 export function withDefaults(s: Partial<Settings> | undefined): Settings {
-  return { ...DEFAULT_SETTINGS, ...s, plate: { ...DEFAULT_SETTINGS.plate, ...s?.plate } };
+  return {
+    ...DEFAULT_SETTINGS,
+    ...s,
+    plate: { ...DEFAULT_SETTINGS.plate, ...s?.plate },
+    opacity: { ...DEFAULT_SETTINGS.opacity, ...s?.opacity },
+  };
 }
 
 export const THICKNESS_MIN = 0.2;
@@ -78,7 +104,7 @@ export function defaultArrangement(parts: Part[], settings: Settings = DEFAULT_S
   return {
     levels: parts.map((p) => ({ id: newLevelId(), partKeys: [p.key], thickness: null })),
     parts: {},
-    settings: { ...settings, plate: { ...settings.plate } },
+    settings: { ...settings, plate: { ...settings.plate }, opacity: { ...settings.opacity } },
   };
 }
 
@@ -125,32 +151,83 @@ export interface PrintedLevel {
   /** 1-based position among printed (non-empty) levels. */
   number: number;
   enabledKeys: string[];
+  /** Thickness asked for (override or default), before snapping to layers. */
+  requested: number;
+  /** Actual printed thickness. */
   thickness: number;
   zStart: number;
   zEnd: number;
+  /** 1-based slicer layer number of this level's first layer. */
+  layerStart: number;
+  /** Number of slicer layers (fractional when snapping is off and it doesn't line up). */
+  layerCount: number;
+  /** zStart falls exactly on a layer boundary (always true when snapping). */
+  aligned: boolean;
+}
+
+const EPS = 1e-6;
+const round6 = (v: number) => Math.round(v * 1e6) / 1e6;
+
+/** Top Z of 1-based layer n. */
+export function layerTopZ(n: number, s: Pick<Settings, "layerHeight" | "firstLayerHeight">): number {
+  return round6(s.firstLayerHeight + (n - 1) * s.layerHeight);
+}
+
+/** Number of layers whose top is at or below z (i.e. layers fully printed by height z). */
+function layersBelow(z: number, s: Settings): number {
+  if (z < s.firstLayerHeight - EPS) return 0;
+  return 1 + Math.floor((z - s.firstLayerHeight) / s.layerHeight + EPS);
 }
 
 /**
- * Levels that actually print (at least one enabled part), with their Z
- * ranges. The plate, when enabled, is the bottom level. The base thickness
- * applies to the first *printed* level (the plate, if there is one).
+ * Snaps a requested thickness to whole layers (nearest, at least one).
+ * The first printed level includes the first layer.
+ */
+export function snapThickness(requested: number, isFirst: boolean, s: Settings): { thickness: number; layers: number } {
+  if (isFirst) {
+    const layers = Math.max(1, 1 + Math.round((requested - s.firstLayerHeight) / s.layerHeight + EPS));
+    return { thickness: round6(s.firstLayerHeight + (layers - 1) * s.layerHeight), layers };
+  }
+  const layers = Math.max(1, Math.round(requested / s.layerHeight + EPS));
+  return { thickness: round6(layers * s.layerHeight), layers };
+}
+
+/** Smallest whole-layer thickness >= min (used when raising levels). */
+export function ceilToLayers(min: number, isFirst: boolean, s: Settings): number {
+  if (isFirst) return round6(s.firstLayerHeight + Math.max(0, Math.ceil((min - s.firstLayerHeight) / s.layerHeight - EPS)) * s.layerHeight);
+  return round6(Math.max(1, Math.ceil(min / s.layerHeight - EPS)) * s.layerHeight);
+}
+
+/**
+ * Levels that actually print (at least one enabled part), with their Z and
+ * layer ranges. The plate, when enabled, is the bottom level. The base
+ * thickness applies to the first *printed* level (the plate, if any).
+ * With snapping on, every level is a whole number of slicer layers, so
+ * every color change lands exactly between two layers.
  */
 export function printedLevels(arr: Arrangement): PrintedLevel[] {
+  const s = arr.settings;
   const out: PrintedLevel[] = [];
   let z = 0;
+  const push = (level: Level | null, id: string, enabledKeys: string[], requested: number) => {
+    const isFirst = out.length === 0;
+    let thickness = requested;
+    if (s.snapToLayers) thickness = snapThickness(requested, isFirst, s).thickness;
+    const zStart = z;
+    const zEnd = round6(z + thickness);
+    const below = layersBelow(zStart, s);
+    const aligned = zStart === 0 || Math.abs(layerTopZ(below, s) - zStart) < 1e-4;
+    const layerCount = s.snapToLayers ? snapThickness(requested, isFirst, s).layers : round6((zEnd - zStart) / s.layerHeight);
+    out.push({ level, id, number: out.length + 1, enabledKeys, requested, thickness, zStart, zEnd, layerStart: below + 1, layerCount, aligned });
+    z = zEnd;
+  };
+
   const anyEnabled = arr.levels.some((l) => l.partKeys.some((k) => isPartEnabled(arr, k)));
-  if (arr.settings.plate.enabled && anyEnabled) {
-    const t = arr.settings.baseThickness;
-    out.push({ level: null, id: PLATE_ID, number: 1, enabledKeys: [], thickness: t, zStart: 0, zEnd: t });
-    z = t;
-  }
+  if (s.plate.enabled && anyEnabled) push(null, PLATE_ID, [], s.baseThickness);
   for (const level of arr.levels) {
     const enabledKeys = level.partKeys.filter((k) => isPartEnabled(arr, k));
     if (enabledKeys.length === 0) continue;
-    const thickness =
-      level.thickness ?? (out.length === 0 ? arr.settings.baseThickness : arr.settings.defaultThickness);
-    out.push({ level, id: level.id, number: out.length + 1, enabledKeys, thickness, zStart: z, zEnd: z + thickness });
-    z += thickness;
+    push(level, level.id, enabledKeys, level.thickness ?? (out.length === 0 ? s.baseThickness : s.defaultThickness));
   }
   return out;
 }
@@ -232,6 +309,14 @@ export function parseSidecar(json: unknown): Sidecar {
         },
         targetWidth: s.targetWidth == null ? null : num(s.targetWidth, 100, 5, 1000),
         nozzle: num(s.nozzle, d.nozzle, 0.1, 2),
+        layerHeight: num(s.layerHeight, d.layerHeight, 0.04, 1),
+        firstLayerHeight: num(s.firstLayerHeight, d.firstLayerHeight, 0.04, 1),
+        snapToLayers: typeof s.snapToLayers === "boolean" ? s.snapToLayers : d.snapToLayers,
+        opacity: {
+          enabled: typeof s.opacity?.enabled === "boolean" ? s.opacity.enabled : d.opacity.enabled,
+          minDark: num(s.opacity?.minDark, d.opacity.minDark, 0, 5),
+          minLight: num(s.opacity?.minLight, d.opacity.minLight, 0, 5),
+        },
       },
     },
   };

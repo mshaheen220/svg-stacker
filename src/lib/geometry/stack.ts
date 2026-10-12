@@ -1,5 +1,6 @@
 import { area, difference, EndType, FillRule, getBoundsPaths, inflatePaths, intersect, JoinType } from "clipper2-ts";
-import { partName, PLATE_ID, printedLevels, type Arrangement } from "../arrangement";
+import { partName, PLATE_ID, type Arrangement } from "../arrangement";
+import { planLevels } from "../layers";
 import type { Part } from "../parts";
 import { regionAreaMm2, UNITS_PER_MM, unionRegions, type Region } from "./region";
 
@@ -75,10 +76,10 @@ function transform(region: Region, s: number, dx: number, dy: number): Region {
 
 export function computeStack(arr: Arrangement, parts: Part[], footprints: Map<string, Region>): StackResult {
   const settings = arr.settings;
-  const printed = printedLevels(arr);
+  const byKey = new Map(parts.map((p) => [p.key, p]));
+  const printed = planLevels(arr, byKey);
   const partLevels = printed.filter((l) => l.level);
   if (partLevels.length === 0) return EMPTY;
-  const byKey = new Map(parts.map((p) => [p.key, p]));
 
   // Scale so the overall width (artwork + plate margins) hits the target.
   const allFootprints = unionRegions(partLevels.flatMap((l) => l.enabledKeys.map((k) => footprints.get(k) ?? [])));
@@ -122,7 +123,6 @@ export function computeStack(arr: Arrangement, parts: Part[], footprints: Map<st
 
   printed.forEach((l, i) => {
     const enabledParts = l.enabledKeys.map((k) => byKey.get(k)).filter((p): p is Part => !!p);
-    const partColors = [...new Set(enabledParts.map((p) => p.color))];
     const thin = thinRegions(solids[i], minFeatureMm);
     const unsupported = i === 0 ? [] : diff(solids[i], solids[i - 1]);
     levels.push({
@@ -130,8 +130,8 @@ export function computeStack(arr: Arrangement, parts: Part[], footprints: Map<st
       number: l.number,
       isPlate: l.id === PLATE_ID,
       name: l.level ? enabledParts.map((p) => partName(arr, p)).join(" + ") : "Plate",
-      color: l.level ? (partColors[0] ?? "#888888") : settings.plate.color,
-      partColors,
+      color: l.color,
+      partColors: l.partColors,
       zStart: l.zStart,
       zEnd: l.zEnd,
       solid: solids[i],

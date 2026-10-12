@@ -33,7 +33,7 @@ The **Levels** panel on the right lists levels from the bottom (Level 1, printed
 - **Move parts between levels:** drag a part's ⠿ handle onto another level, or use its **Move…** menu. The menu can also create a new level at the top or bottom. Putting several parts on one level prints them in the same filament. If their colors differ, you'll see a warning and the first part's color is used.
 - **Rename a part:** click its name and type. The name is used in OrcaSlicer. Clear it to go back to the default name.
 - **Leave a part out:** untick its checkbox. A level with no ticked parts isn't printed.
-- **Thickness:** set the **Base (level 1)** and **Other levels** defaults in the left panel. To override one level, type a value in its header. Leave it blank to use the default. Each level shows its Z range, and the panel shows the total height.
+- **Thickness:** set the **Base (level 1)** and **Other levels** defaults in the left panel's **Layers & thickness** section. To override one level, type a value in its header. Leave it blank to use the default. Each level shows its Z range, and the panel shows the total height.
 - **Highlighting:** hover a level or part to highlight it in the preview.
 
 ### Saving your arrangement
@@ -53,5 +53,18 @@ These settings are in the **Support & size** section of the left panel.
 ### Checking it in the preview
 
 **Print** mode shows the finished piece from above. Drag the **Levels 1–N** slider to watch it build up level by level. This is the easiest way to see the support fill at work. Tick or untick **Thin features** to show or hide the red hatching.
+
+## 5. Layers, filament swaps and opacity
+
+The **Layers & thickness** section of the left panel makes sure the stack prints cleanly.
+
+- Set **Layer height** and **First layer** to match your OrcaSlicer process. Both default to 0.2 mm.
+- **Whole layers only** (on by default) rounds every level to a whole number of layers, so each color change falls exactly between two layers. A level card shows the rounding when it applies, for example "1.00 → 1.12 mm" at 0.28 mm layers.
+- Each level card shows its **layer range** and what happens there:
+  - **load … to start:** the filament to load before printing.
+  - **⇄ swap to … before layer N:** where the printer should pause for the filament change.
+  - **same filament as below, no swap:** two adjacent levels in the same color. You might merge them.
+- **Opacity check:** a color only shows its own level's thickness on top of the level below. Light colors over dark ones are translucent when thin, for example white over black or yellow over brown. When a level is too thin to hide the color below it, its card shows a ⚠ with the thickness it needs. Click **Fix** to raise that level, or **Normalize all levels** to fix every level at once. Levels are only ever made thicker, never thinner.
+  - **Dark colors need** (default 0.4 mm) and **White over black needs** (default 1.2 mm) set the range. Other color pairs fall in between, depending on how light the top color is and how much darker the color under it is. If your filaments are thin or translucent, raise the white-over-black value and normalize again.
 
 *More sections (arranging levels, exporting, color changes) will be added as those features land.*

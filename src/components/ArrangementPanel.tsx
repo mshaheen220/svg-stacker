@@ -1,12 +1,11 @@
 import { useRef, useState } from "react";
-import { parseSidecar, THICKNESS_MAX, THICKNESS_MIN } from "../lib/arrangement";
+import { parseSidecar } from "../lib/arrangement";
 import { useProject } from "../store/useProject";
 import { baseName, downloadBlob } from "../utils/download";
-import { NumberSlider } from "./controls/NumberSlider";
 
-/** Global level settings plus save/load of the arrangement sidecar. */
+/** Save/load of the arrangement sidecar, and reset. */
 export function ArrangementPanel() {
-  const { arrangement, fileName, setSettings, exportSidecar, applySidecar, resetArrangement } = useProject();
+  const { fileName, exportSidecar, applySidecar, resetArrangement } = useProject();
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "warn" | "error"; text: string } | null>(null);
 
@@ -29,30 +28,9 @@ export function ArrangementPanel() {
   return (
     <section aria-labelledby="arrangement-heading" className="space-y-3">
       <h2 id="arrangement-heading" className="text-sm font-semibold">
-        Level thickness
+        Arrangement
       </h2>
-      <NumberSlider
-        label="Base (level 1)"
-        value={arrangement.settings.baseThickness}
-        min={THICKNESS_MIN}
-        max={5}
-        step={0.1}
-        unit="mm"
-        onChange={(v) => setSettings({ baseThickness: v })}
-      />
-      <NumberSlider
-        label="Other levels (default)"
-        value={arrangement.settings.defaultThickness}
-        min={THICKNESS_MIN}
-        max={Math.min(THICKNESS_MAX, 3)}
-        step={0.1}
-        unit="mm"
-        help="Override any level in its header; leave blank to use these."
-        onChange={(v) => setSettings({ defaultThickness: v })}
-      />
-
       <div className="space-y-2">
-        <h3 className="text-xs uppercase tracking-wide text-ink-400">Arrangement</h3>
         <p className="text-xs text-ink-400">Autosaved in this browser. Save a sidecar file to re-use it with the same SVG later.</p>
         <div className="flex flex-wrap gap-2">
           <button type="button" className={btn} onClick={save}>

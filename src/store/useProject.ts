@@ -13,6 +13,7 @@ import {
   type Sidecar,
 } from "../lib/arrangement";
 import type { Region } from "../lib/geometry/region";
+import { normalizeArrangement, type NormalizeChange } from "../lib/layers";
 import { groupParts, partFootprint, type Part, type StrokeMode } from "../lib/parts";
 import { parseSvgText } from "../lib/svg/parse";
 import type { ParsedSvg } from "../lib/svg/types";
@@ -51,6 +52,8 @@ interface ProjectState {
   setPartEnabled: (key: string, enabled: boolean) => void;
   setSettings: (s: Partial<Settings>) => void;
   resetArrangement: () => void;
+  /** Raises levels whose color would show through; returns what changed. */
+  normalize: () => NormalizeChange[];
 
   exportSidecar: () => Sidecar;
   /** Applies a loaded sidecar. Returns a warning when it was saved for a different SVG. */
@@ -196,6 +199,13 @@ export const useProject = create<ProjectState>()(
         resetArrangement: () => {
           const derived = deriveParts(get().parsed, {});
           set({ strokeModes: {}, ...derived, arrangement: defaultArrangement(derived.parts, get().arrangement.settings) });
+        },
+
+        normalize: () => {
+          const { arrangement, parts } = get();
+          const result = normalizeArrangement(arrangement, new Map(parts.map((p) => [p.key, p])));
+          if (result.changes.length) set({ arrangement: result.arrangement });
+          return result.changes;
         },
 
         exportSidecar: () => {

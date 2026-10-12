@@ -90,7 +90,7 @@ const FRIENDLY: [string, string][] = [
 ];
 
 // sRGB → CIE Lab, for perceptually sensible nearest-name matching.
-function toLab([r, g, b]: [number, number, number]): [number, number, number] {
+export function toLab([r, g, b]: [number, number, number]): [number, number, number] {
   const lin = (c: number) => {
     c /= 255;
     return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
