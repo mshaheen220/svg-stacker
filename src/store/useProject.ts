@@ -7,6 +7,7 @@ import {
   hashText,
   newLevelId,
   reconcile,
+  withDefaults,
   type Arrangement,
   type Settings,
   type Sidecar,
@@ -234,6 +235,7 @@ export const useProject = create<ProjectState>()(
       merge: (persisted, current) => {
         const saved = persisted as Partial<ProjectState> | undefined;
         const next = { ...current, ...saved };
+        next.arrangement = { ...next.arrangement, settings: withDefaults(next.arrangement?.settings) };
         if (!next.svgText) return next;
         const derived = parseAndDerive(next.svgText, next.tolerance, next.strokeModes);
         return { ...next, ...derived, arrangement: reconcile(next.arrangement, derived.parts) };

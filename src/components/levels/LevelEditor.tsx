@@ -18,7 +18,9 @@ import { CSS } from "@dnd-kit/utilities";
 import { useMemo, type ReactNode } from "react";
 import { isPartEnabled, partName, printedLevels, type Level } from "../../lib/arrangement";
 import type { Part } from "../../lib/parts";
+import type { StackLevel } from "../../lib/geometry/stack";
 import { useProject } from "../../store/useProject";
+import { useStack } from "../../store/useStack";
 import { ThicknessInput } from "./ThicknessInput";
 
 // dnd-kit ids are prefixed so levels and parts share one DndContext:
@@ -55,7 +57,7 @@ interface Props {
 export function LevelEditor({ onHighlight }: Props) {
   const { arrangement, parts, moveLevel, movePart, addLevel } = useProject();
   const partsByKey = useMemo(() => new Map(parts.map((p) => [p.key, p])), [parts]);
-  const printed = useMemo(() => new Map(printedLevels(arrangement).map((p) => [p.level.id, p])), [arrangement]);
+  const printed = useMemo(() => new Map(printedLevels(arrangement).map((p) => [p.id, p])), [arrangement]);
   const levels = arrangement.levels;
 
   const sensors = useSensors(
@@ -115,6 +117,7 @@ export function LevelEditor({ onHighlight }: Props) {
       <p className="text-xs text-ink-400">
         Bottom (printed first) to top. Drag the ⠿ handles, or use the arrows and “Move to” menus.
       </p>
+      {arrangement.settings.plate.enabled && <PlateCard />}
       <DndContext
         sensors={sensors}
         collisionDetection={collision}
@@ -160,6 +163,8 @@ interface LevelCardProps {
 
 function LevelCard({ level, index, count, partsByKey, zRange, onHighlight }: LevelCardProps) {
   const { arrangement, moveLevel, removeLevel, setLevelThickness } = useProject();
+  const stackLevel = useStack((s) => s.result?.levels.find((l) => l.id === level.id));
+  const minFeature = 2 * arrangement.settings.nozzle;
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: L(level.id) });
   const { setNodeRef: setDropRef, isOver } = useDroppable({ id: D(level.id) });
 
@@ -168,7 +173,7 @@ function LevelCard({ level, index, count, partsByKey, zRange, onHighlight }: Lev
   const colors = [...new Set(enabled.map((p) => p.color))];
   const isBase = zRange?.number === 1;
   const fallback = isBase || (!zRange && index === 0) ? arrangement.settings.baseThickness : arrangement.settings.defaultThickness;
-  const title = `Level ${index + 1}`;
+  const title = zRange ? `Level ${zRange.number}` : `Unprinted level (${index + 1} in list)`;
 
   return (
     <li
@@ -216,6 +221,7 @@ function LevelCard({ level, index, count, partsByKey, zRange, onHighlight }: Lev
             </IconButton>
           )}
         </span>
+        {stackLevel && <LevelWarnings level={stackLevel} minFeature={minFeature} />}
         {colors.length > 1 && (
           <p className="w-full text-xs text-amber-300 day:text-amber-700">
             ⚠ A level prints in one filament. Its parts have {colors.length} colors, so the first color is used.
@@ -322,5 +328,42 @@ function IconButton({ label, disabled, onClick, children }: { label: string; dis
     >
       {children}
     </button>
+  );
+}
+
+function LevelWarnings({ level, minFeature }: { level: StackLevel; minFeature: number }) {
+  const fmt = (a: number) => (a < 10 ? a.toFixed(1) : Math.round(a).toString());
+  return (
+    <>
+      {level.unsupportedAreaMm2 >= 0.01 && (
+        <p className="w-full text-xs text-red-400 day:text-red-700">
+          ⚠ {fmt(level.unsupportedAreaMm2)} mm² has nothing underneath and will float. Turn on support fill or reorder.
+        </p>
+      )}
+      {level.thinAreaMm2 > 0 && (
+        <p className="w-full text-xs text-amber-300 day:text-amber-700">
+          ⚠ {fmt(level.thinAreaMm2)} mm² is thinner than {minFeature.toFixed(2)} mm and may not print (red in the preview).
+        </p>
+      )}
+    </>
+  );
+}
+
+function PlateCard() {
+  const { arrangement } = useProject();
+  const stackLevel = useStack((s) => s.result?.levels.find((l) => l.isPlate));
+  const { plate, baseThickness, nozzle } = arrangement.settings;
+  return (
+    <div className="rounded-lg border border-ink-800 bg-ink-900/70 px-2 py-1.5" aria-label="Level 1, background plate">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span aria-hidden className="h-4 w-4 rounded-sm border border-ink-600" style={{ background: plate.color }} />
+        <span className="text-sm font-medium">
+          Level 1 <span className="text-xs font-normal text-ink-400">(plate)</span>
+        </span>
+        <span className="text-xs text-ink-400">Z 0.00–{baseThickness.toFixed(2)}</span>
+        <span className="ml-auto text-xs text-ink-400">margin {plate.margin} mm · set in Support &amp; size</span>
+        {stackLevel && <LevelWarnings level={stackLevel} minFeature={2 * nozzle} />}
+      </div>
+    </div>
   );
 }

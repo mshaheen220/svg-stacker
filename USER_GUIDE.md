@@ -22,7 +22,7 @@ Shapes are grouped into **parts**. Each part is one filament color in the finish
 
 - Shapes with the same Inkscape name and the same color become one part, named after the label. If one label covers several colors, each gets its own part, e.g. "background (white)" and "background (rose)".
 - Unnamed shapes are grouped by color and named like "teal #008080".
-- The preview's **Print** mode shows what will print: each part in its level's filament color, stacked bottom to top. **Original** shows the shapes as imported.
+- The preview's **Print** mode shows what will print, and **Original** shows the shapes as imported. See section 4.
 - **Strokes** (left panel): each stroked shape can be set to **Outline**, which makes the stroke its own part (great for a colored border ring around a circle), or **Ignore**. Very thin strokes (under 0.2 mm) are ignored by default. They're usually leftovers from auto-tracing and too thin to print.
 
 ## 3. Arrange the levels
@@ -39,5 +39,19 @@ The **Levels** panel on the right lists levels from the bottom (Level 1, printed
 ### Saving your arrangement
 
 Your work is autosaved in this browser. Re-opening the same SVG keeps your arrangement. To keep it somewhere safe, or to use it on another computer, click **Save arrangement…** to download a small `.stacker.json` file. Later, import the same SVG and click **Load arrangement…**. If the SVG has changed, parts are matched by name and color, and you'll see a note. **Reset** returns everything to the defaults for the current SVG.
+
+## 4. Support, plate and size
+
+These settings are in the **Support & size** section of the left panel.
+
+- **Support fill** (on by default) makes every level solid wherever any level above it has something, like a stepped wedding cake. Nothing ever prints in mid-air. If you turn it off, each level is only its own shape, and any level with nothing directly underneath gets a red "will float" warning.
+- **Background plate** adds a bottom level that covers the whole design plus a **margin**, in a **color** you pick. It becomes Level 1 and uses the base thickness.
+- **Clearance** shrinks every level above the base slightly inward. This is useful if your printer over-extrudes edges. Leave it at 0 otherwise.
+- **Final size:** untick **Original size** to set a **target width** in mm. That's the full width, including any plate. The panel shows the final width × depth × height.
+- **Nozzle:** anything narrower than 2 × nozzle width (0.8 mm for a 0.4 mm nozzle) is flagged. Those levels show a ⚠ with the affected area, and the preview hatches the spots in red. Thin features depend on the final size, so making the print bigger often fixes them. You can also thicken the lines in Inkscape.
+
+### Checking it in the preview
+
+**Print** mode shows the finished piece from above. Drag the **Levels 1–N** slider to watch it build up level by level. This is the easiest way to see the support fill at work. Tick or untick **Thin features** to show or hide the red hatching.
 
 *More sections (arranging levels, exporting, color changes) will be added as those features land.*

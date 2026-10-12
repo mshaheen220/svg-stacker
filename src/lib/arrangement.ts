@@ -20,11 +20,28 @@ export interface PartSettings {
   enabled?: boolean;
 }
 
+export interface PlateSettings {
+  /** Adds a background plate under everything, as the bottom level. */
+  enabled: boolean;
+  /** How far the plate extends past the artwork's outline (mm). */
+  margin: number;
+  color: string;
+}
+
 export interface Settings {
   /** Default thickness for levels 2+ (mm). */
   defaultThickness: number;
-  /** Default thickness for level 1, the base (mm). */
+  /** Default thickness for level 1, the base (mm) - the plate, when enabled. */
   baseThickness: number;
+  /** Each level is solid under every level above it, so nothing floats. */
+  supportFill: boolean;
+  /** Inward offset applied to every level above the base (mm). */
+  clearance: number;
+  plate: PlateSettings;
+  /** Overall printed width (mm), including any plate; null = the SVG's own size. */
+  targetWidth: number | null;
+  /** Nozzle diameter (mm); features narrower than 2× this are flagged. */
+  nozzle: number;
 }
 
 export interface Arrangement {
@@ -37,7 +54,19 @@ export interface Arrangement {
 export const DEFAULT_SETTINGS: Settings = {
   defaultThickness: 1.0,
   baseThickness: 2.0,
+  supportFill: true,
+  clearance: 0,
+  plate: { enabled: false, margin: 3, color: "#ffffff" },
+  targetWidth: null,
+  nozzle: 0.4,
 };
+
+export const PLATE_ID = "plate";
+
+/** Fills in settings missing from older autosaves/sidecars. */
+export function withDefaults(s: Partial<Settings> | undefined): Settings {
+  return { ...DEFAULT_SETTINGS, ...s, plate: { ...DEFAULT_SETTINGS.plate, ...s?.plate } };
+}
 
 export const THICKNESS_MIN = 0.2;
 export const THICKNESS_MAX = 10;
@@ -49,7 +78,7 @@ export function defaultArrangement(parts: Part[], settings: Settings = DEFAULT_S
   return {
     levels: parts.map((p) => ({ id: newLevelId(), partKeys: [p.key], thickness: null })),
     parts: {},
-    settings: { ...settings },
+    settings: { ...settings, plate: { ...settings.plate } },
   };
 }
 
@@ -89,7 +118,10 @@ export function partName(arr: Arrangement, part: Part): string {
 }
 
 export interface PrintedLevel {
-  level: Level;
+  /** The arrangement level, or null for the background plate. */
+  level: Level | null;
+  /** Level id, or PLATE_ID. */
+  id: string;
   /** 1-based position among printed (non-empty) levels. */
   number: number;
   enabledKeys: string[];
@@ -100,17 +132,24 @@ export interface PrintedLevel {
 
 /**
  * Levels that actually print (at least one enabled part), with their Z
- * ranges. Level 1's base thickness applies to the first *printed* level.
+ * ranges. The plate, when enabled, is the bottom level. The base thickness
+ * applies to the first *printed* level (the plate, if there is one).
  */
 export function printedLevels(arr: Arrangement): PrintedLevel[] {
   const out: PrintedLevel[] = [];
   let z = 0;
+  const anyEnabled = arr.levels.some((l) => l.partKeys.some((k) => isPartEnabled(arr, k)));
+  if (arr.settings.plate.enabled && anyEnabled) {
+    const t = arr.settings.baseThickness;
+    out.push({ level: null, id: PLATE_ID, number: 1, enabledKeys: [], thickness: t, zStart: 0, zEnd: t });
+    z = t;
+  }
   for (const level of arr.levels) {
     const enabledKeys = level.partKeys.filter((k) => isPartEnabled(arr, k));
     if (enabledKeys.length === 0) continue;
     const thickness =
       level.thickness ?? (out.length === 0 ? arr.settings.baseThickness : arr.settings.defaultThickness);
-    out.push({ level, number: out.length + 1, enabledKeys, thickness, zStart: z, zEnd: z + thickness });
+    out.push({ level, id: level.id, number: out.length + 1, enabledKeys, thickness, zStart: z, zEnd: z + thickness });
     z += thickness;
   }
   return out;
@@ -165,6 +204,8 @@ export function parseSidecar(json: unknown): Sidecar {
     };
   }
   const s = (a.settings ?? {}) as Partial<Settings>;
+  const plate = (s.plate ?? {}) as Partial<PlateSettings>;
+  const d = DEFAULT_SETTINGS;
   const strokeModes: Record<string, StrokeMode> = {};
   for (const [k, v] of Object.entries(o.strokeModes ?? {})) if (v === "outline" || v === "ignore") strokeModes[k] = v;
 
@@ -180,8 +221,17 @@ export function parseSidecar(json: unknown): Sidecar {
       levels,
       parts,
       settings: {
-        defaultThickness: num(s.defaultThickness, DEFAULT_SETTINGS.defaultThickness),
-        baseThickness: num(s.baseThickness, DEFAULT_SETTINGS.baseThickness),
+        defaultThickness: num(s.defaultThickness, d.defaultThickness),
+        baseThickness: num(s.baseThickness, d.baseThickness),
+        supportFill: typeof s.supportFill === "boolean" ? s.supportFill : d.supportFill,
+        clearance: num(s.clearance, d.clearance, 0, 1),
+        plate: {
+          enabled: typeof plate.enabled === "boolean" ? plate.enabled : d.plate.enabled,
+          margin: num(plate.margin, d.plate.margin, 0, 50),
+          color: typeof plate.color === "string" && /^#[0-9a-f]{6}$/i.test(plate.color) ? plate.color.toLowerCase() : d.plate.color,
+        },
+        targetWidth: s.targetWidth == null ? null : num(s.targetWidth, 100, 5, 1000),
+        nozzle: num(s.nozzle, d.nozzle, 0.1, 2),
       },
     },
   };

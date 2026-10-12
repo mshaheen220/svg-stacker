@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   defaultArrangement,
+  DEFAULT_SETTINGS,
   hashText,
   parseSidecar,
   printedLevels,
@@ -36,7 +37,7 @@ describe("arrangement", () => {
   });
 
   it("computes Z ranges, applying base thickness to the first printed level and skipping disabled ones", () => {
-    const arr = defaultArrangement(parts, { baseThickness: 2, defaultThickness: 0.6 });
+    const arr = defaultArrangement(parts, { ...DEFAULT_SETTINGS, baseThickness: 2, defaultThickness: 0.6 });
     arr.parts.a = { enabled: false };
     arr.levels[2].thickness = 1;
     const p = printedLevels(arr);

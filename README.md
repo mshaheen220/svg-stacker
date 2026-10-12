@@ -42,11 +42,16 @@ src/
     units.ts      mm/in/pt/px (96 dpi) lengths
   lib/geometry/ region.ts: clipper2-ts wrapper. Regions are integer µm Paths64
                 (outer +, holes -), fill-rule-aware fills, stroke outlines
+  lib/geometry/stack.ts  arrangement → printed solids: scaling to target
+                width, support fill, plate, clearance, visible regions,
+                thin-feature and floating-area checks
+  workers/      stack.worker.ts runs computeStack off the main thread
   lib/parts.ts  shapes → parts (merge key "label|#color"), footprints
   lib/arrangement.ts  levels (bottom → top), per-part name/enabled, thickness
                 settings, reconcile-with-parts, Z ranges, sidecar validation
-  store/        zustand store; persist middleware autosaves to localStorage
-                (only source data + arrangement; parse/parts are re-derived)
+  store/        useProject: zustand store; persist middleware autosaves to
+                localStorage (only source data + arrangement; parse/parts are
+                re-derived). useStack: debounced worker results
   components/   UI (levels/ = dnd-kit level editor, preview/, controls/)
   hooks/        useTheme (day / night / system)
 tests/          vitest
@@ -70,11 +75,22 @@ An `Arrangement` is an ordered list of levels (index 0 = bottom). Each level hol
 
 **Autosave:** the localStorage key is `svg-stacker:project`. Persist's `merge` re-derives parse/parts on hydration. Storage errors such as quota or private mode are swallowed.
 
+### Stacking (`computeStack`)
+
+Inputs are the arrangement, the parts and their footprints (SVG page mm). Output regions are in **final print mm** (integer µm), scaled to `targetWidth` (which includes plate margins), with the bounding box at (0, 0). Y is still down.
+
+1. Union the enabled footprints per printed level and place them (scale and translate).
+2. Walk top-down keeping a running union. With **support fill**, `solid_k = ∪ footprints ≥ k`; otherwise `solid_k = footprint_k`. The **plate** is `offset(∪ everything, margin)` and is always the bottom printed level, using the base thickness.
+3. **Clearance** offsets every level above the first inward.
+4. `visible_k = solid_k − ∪ solids above` (used for the top-view color), `unsupported_k = solid_k − solid_{k−1}` (floating area), `thin_k = solid_k − opening(solid_k, 2 × nozzle)`. Opening means shrinking by half the width and growing back. Slivers smaller than ½·w², which are mostly shaved sharp corners, are ignored.
+
+On detailed art this takes about 200–350 ms, so `useStackRunner` (mounted once in `App`) debounces changes by 120 ms and posts them to `workers/stack.worker.ts`. Stale responses are dropped by request id. If workers are unavailable it falls back to the main thread.
+
 **Drag and drop:** one `DndContext` with prefixed ids (`L:` level, `P:` part, `D:` level drop zone). Pointer collision and the keyboard coordinate getter are both filtered so levels only target levels and parts only target parts or drop zones. Every drag action also has a button or select equivalent.
 
 ### Planned layers (later milestones)
 
-- `lib/geometry/`: support-fill stacking, clearance offsets and thin-feature checks (clipper2-ts); manifold-3d (WASM) for watertight extrusion, run in a Web Worker.
+- manifold-3d (WASM) for watertight extrusion of `StackLevel.solid` regions, also in a worker.
 - `lib/export/`: 3MF writer (`3D/3dmodel.model`, `Metadata/model_settings.config`, `Metadata/custom_gcode_per_layer.xml`, zipped with fflate) and per-level STL.
 
 ### Roadmap
@@ -82,7 +98,7 @@ An `Arrangement` is an ordered list of levels (index 0 = bottom). Each level hol
 1. ✅ Scaffold, plus import and 2D preview
 2. ✅ Grouping into parts (label/color merge, stroke handling)
 3. ✅ Level editor (drag-and-drop, thickness, rename, toggle, JSON sidecar, autosave)
-4. Support fill, background plate, clearance, thin-feature warnings
+4. ✅ Support fill, background plate, clearance, thin-feature warnings
 5. 3D preview with a level scrubber
 6. 3MF and STL export
 7. Color-change embedding and printable summary

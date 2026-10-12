@@ -3,6 +3,7 @@ import { version } from "../package.json";
 import { ArrangementPanel } from "./components/ArrangementPanel";
 import { ImportSummary } from "./components/ImportSummary";
 import { StrokesPanel } from "./components/StrokesPanel";
+import { SupportPanel } from "./components/SupportPanel";
 import { ThemeSwitcher } from "./components/ThemeSwitcher";
 import { FileDropzone } from "./components/controls/FileDropzone";
 import { NumberSlider } from "./components/controls/NumberSlider";
@@ -10,12 +11,17 @@ import { LevelEditor } from "./components/levels/LevelEditor";
 import { Preview2D } from "./components/preview/Preview2D";
 import { printedLevels } from "./lib/arrangement";
 import { useProject } from "./store/useProject";
+import { useStack, useStackRunner } from "./store/useStack";
 
 export default function App() {
   const { fileName, parsed, error, tolerance, arrangement, loadSvg, setTolerance } = useProject();
   const [highlighted, setHighlighted] = useState<string[] | null>(null);
+  useStackRunner();
+  const stack = useStack((s) => s.result);
   const printed = printedLevels(arrangement);
   const totalHeight = printed.at(-1)?.zEnd ?? 0;
+  const thinLevels = stack?.levels.filter((l) => l.thinAreaMm2 > 0).length ?? 0;
+  const floatingLevels = stack?.levels.filter((l) => l.unsupportedAreaMm2 >= 0.01).length ?? 0;
 
   return (
     <div className="flex min-h-full flex-col lg:h-full">
@@ -61,6 +67,7 @@ export default function App() {
           </section>
           {parsed && <ImportSummary parsed={parsed} />}
           {parsed && <StrokesPanel />}
+          {parsed && <SupportPanel />}
           {parsed && <ArrangementPanel />}
         </aside>
 
@@ -85,6 +92,13 @@ export default function App() {
               </h2>
               <span className="text-xs text-ink-400">Total height {totalHeight.toFixed(2)} mm</span>
             </div>
+            {(thinLevels > 0 || floatingLevels > 0) && (
+              <p role="status" className="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-300 day:text-amber-700">
+                {floatingLevels > 0 && `${floatingLevels} level${floatingLevels === 1 ? " has" : "s have"} floating areas. `}
+                {thinLevels > 0 &&
+                  `${thinLevels} level${thinLevels === 1 ? " has" : "s have"} features thinner than ${(2 * arrangement.settings.nozzle).toFixed(2)} mm at this size.`}
+              </p>
+            )}
             <LevelEditor onHighlight={setHighlighted} />
           </section>
         )}
