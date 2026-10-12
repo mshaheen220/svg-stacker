@@ -141,6 +141,8 @@ No `project_settings.config` is written, so Orca keeps the user's current printe
 
 **Drag and drop:** one `DndContext` with prefixed ids (`L:` level, `P:` part, `D:` level drop zone). Pointer collision and the keyboard coordinate getter are both filtered so levels only target levels and parts only target parts or drop zones. Every drag action also has a button or select equivalent.
 
+**List order** (`useView.listOrder`, persisted under `svg-stacker:view`) is display-only. `LevelEditor` renders a reversed copy of `arrangement.levels`, but every index passed down stays real (0 = bottom). Since `onDragEnd` resolves positions by id, drag-and-drop needs no special casing. The ↑/↓ buttons map visual direction to stacking direction based on the order.
+
 ### Roadmap
 
 1. ✅ Scaffold, plus import and 2D preview

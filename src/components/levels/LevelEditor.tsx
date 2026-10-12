@@ -23,6 +23,7 @@ import type { Part } from "../../lib/parts";
 import type { StackLevel } from "../../lib/geometry/stack";
 import { useProject } from "../../store/useProject";
 import { useStack } from "../../store/useStack";
+import { useView } from "../../store/useView";
 import { ThicknessInput } from "./ThicknessInput";
 
 // dnd-kit ids are prefixed so levels and parts share one DndContext:
@@ -61,6 +62,12 @@ export function LevelEditor({ onHighlight }: Props) {
   const partsByKey = useMemo(() => new Map(parts.map((p) => [p.key, p])), [parts]);
   const printed = useMemo(() => new Map(planLevels(arrangement, partsByKey).map((p) => [p.id, p])), [arrangement, partsByKey]);
   const levels = arrangement.levels;
+  const listOrder = useView((s) => s.listOrder);
+  // "Move…" targets, labelled like the card titles, in display order.
+  const levelOptions = useMemo(() => {
+    const opts = levels.map((l, i) => ({ id: l.id, label: printed.get(l.id) ? `Level ${printed.get(l.id)!.number}` : `Unprinted (${i + 1} in list)` }));
+    return listOrder === "top-first" ? opts.reverse() : opts;
+  }, [levels, printed, listOrder]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -114,12 +121,31 @@ export function LevelEditor({ onHighlight }: Props) {
 
   if (parts.length === 0) return null;
 
+  const topFirst = listOrder === "top-first";
+  // Display order only; indices passed down are always real (bottom = 0).
+  const displayed = levels.map((level, index) => ({ level, index }));
+  if (topFirst) displayed.reverse();
+  const plate = arrangement.settings.plate.enabled && printed.get(PLATE_ID) ? <PlateCard plan={printed.get(PLATE_ID)!} /> : null;
+  const addButton = (
+    <button
+      type="button"
+      onClick={addLevel}
+      className="w-full rounded border border-dashed border-ink-700 py-1.5 text-sm text-ink-300 hover:border-accent-400 hover:text-ink-100"
+    >
+      + Add empty level on top
+    </button>
+  );
+
   return (
     <div className="space-y-2">
-      <p className="text-xs text-ink-400">
-        Bottom (printed first) to top. Drag the ⠿ handles, or use the arrows and “Move to” menus.
-      </p>
-      {arrangement.settings.plate.enabled && printed.get(PLATE_ID) && <PlateCard plan={printed.get(PLATE_ID)!} />}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-ink-400">
+          {topFirst ? "Top (printed last) to bottom." : "Bottom (printed first) to top."} Drag the ⠿ handles, or use the arrows and “Move…”
+          menus.
+        </p>
+        <ListOrderSwitch />
+      </div>
+      {topFirst ? addButton : plate}
       <DndContext
         sensors={sensors}
         collisionDetection={collision}
@@ -127,29 +153,25 @@ export function LevelEditor({ onHighlight }: Props) {
         onDragEnd={onDragEnd}
         accessibility={{ announcements }}
       >
-        <SortableContext items={levels.map((l) => L(l.id))} strategy={verticalListSortingStrategy}>
-          <ol className="space-y-2" aria-label="Levels, bottom to top">
-            {levels.map((level, i) => (
+        <SortableContext items={displayed.map(({ level }) => L(level.id))} strategy={verticalListSortingStrategy}>
+          <ol className="space-y-2" aria-label={topFirst ? "Levels, top to bottom" : "Levels, bottom to top"}>
+            {displayed.map(({ level, index }) => (
               <LevelCard
                 key={level.id}
                 level={level}
-                index={i}
+                index={index}
                 count={levels.length}
                 partsByKey={partsByKey}
                 zRange={printed.get(level.id)}
+                levelOptions={levelOptions}
+                topFirst={topFirst}
                 onHighlight={onHighlight}
               />
             ))}
           </ol>
         </SortableContext>
       </DndContext>
-      <button
-        type="button"
-        onClick={addLevel}
-        className="w-full rounded border border-dashed border-ink-700 py-1.5 text-sm text-ink-300 hover:border-accent-400 hover:text-ink-100"
-      >
-        + Add empty level on top
-      </button>
+      {topFirst ? plate : addButton}
     </div>
   );
 }
@@ -160,10 +182,17 @@ interface LevelCardProps {
   count: number;
   partsByKey: Map<string, Part>;
   zRange: LevelPlan | undefined;
+  levelOptions: LevelOption[];
+  topFirst: boolean;
   onHighlight: (keys: string[] | null) => void;
 }
 
-function LevelCard({ level, index, count, partsByKey, zRange, onHighlight }: LevelCardProps) {
+interface LevelOption {
+  id: string;
+  label: string;
+}
+
+function LevelCard({ level, index, count, partsByKey, zRange, levelOptions, topFirst, onHighlight }: LevelCardProps) {
   const { arrangement, moveLevel, removeLevel, setLevelThickness } = useProject();
   const stackLevel = useStack((s) => s.result?.levels.find((l) => l.id === level.id));
   const minFeature = 2 * arrangement.settings.nozzle;
@@ -211,12 +240,21 @@ function LevelCard({ level, index, count, partsByKey, zRange, onHighlight }: Lev
             fallback={fallback}
             onChange={(mm) => setLevelThickness(level.id, mm)}
           />
-          <IconButton label={`Move ${title} toward the base`} disabled={index === 0} onClick={() => moveLevel(index, index - 1)}>
-            ↑
-          </IconButton>
-          <IconButton label={`Move ${title} toward the top`} disabled={index === count - 1} onClick={() => moveLevel(index, index + 1)}>
-            ↓
-          </IconButton>
+          {/* Arrows follow the list: ↑ moves up the list, whichever way it's flipped. */}
+          {(["up", "down"] as const).map((dir) => {
+            const towardTop = (dir === "up") === topFirst;
+            const target = towardTop ? index + 1 : index - 1;
+            return (
+              <IconButton
+                key={dir}
+                label={`Move ${title} ${towardTop ? "toward the top" : "toward the base"}`}
+                disabled={target < 0 || target >= count}
+                onClick={() => moveLevel(index, target)}
+              >
+                {dir === "up" ? "↑" : "↓"}
+              </IconButton>
+            );
+          })}
           {level.partKeys.length === 0 && (
             <IconButton label={`Delete empty ${title}`} onClick={() => removeLevel(level.id)}>
               ✕
@@ -234,7 +272,7 @@ function LevelCard({ level, index, count, partsByKey, zRange, onHighlight }: Lev
       <SortableContext items={level.partKeys.map(P)} strategy={verticalListSortingStrategy}>
         <ul ref={setDropRef} className={`min-h-9 space-y-1 p-1.5 ${isOver ? "bg-accent-500/10" : ""}`} aria-label={`Parts on ${title}`}>
           {levelParts.map((p) => (
-            <PartRow key={p.key} part={p} levelIndex={index} onHighlight={onHighlight} />
+            <PartRow key={p.key} part={p} levelId={level.id} levelOptions={levelOptions} onHighlight={onHighlight} />
           ))}
           {levelParts.length === 0 && <li className="px-2 py-1 text-xs text-ink-500">Drop parts here</li>}
         </ul>
@@ -243,7 +281,17 @@ function LevelCard({ level, index, count, partsByKey, zRange, onHighlight }: Lev
   );
 }
 
-function PartRow({ part, levelIndex, onHighlight }: { part: Part; levelIndex: number; onHighlight: (keys: string[] | null) => void }) {
+function PartRow({
+  part,
+  levelId,
+  levelOptions,
+  onHighlight,
+}: {
+  part: Part;
+  levelId: string;
+  levelOptions: LevelOption[];
+  onHighlight: (keys: string[] | null) => void;
+}) {
   const { arrangement, renamePart, setPartEnabled, movePart } = useProject();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: P(part.key) });
   const enabled = isPartEnabled(arrangement, part.key);
@@ -290,10 +338,10 @@ function PartRow({ part, levelIndex, onHighlight }: { part: Part; levelIndex: nu
         className="w-16 shrink-0 rounded border border-ink-700 bg-ink-900 px-0.5 py-0.5 text-xs text-ink-300"
       >
         <option value="">Move…</option>
-        {arrangement.levels.map((l, i) =>
-          i === levelIndex ? null : (
-            <option key={l.id} value={l.id}>
-              Level {i + 1}
+        {levelOptions.map((o) =>
+          o.id === levelId ? null : (
+            <option key={o.id} value={o.id}>
+              {o.label}
             </option>
           ),
         )}
@@ -428,5 +476,30 @@ function PrintInfo({ plan, onFix }: { plan: LevelPlan; onFix?: (mm: number) => v
         </p>
       )}
     </>
+  );
+}
+
+function ListOrderSwitch() {
+  const { listOrder, setListOrder } = useView();
+  const options = [
+    { value: "bottom-first", label: "Bottom first" },
+    { value: "top-first", label: "Top first" },
+  ] as const;
+  return (
+    <div role="radiogroup" aria-label="Levels list order (display only)" className="flex shrink-0 rounded-md border border-ink-700 p-0.5 text-xs">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="radio"
+          aria-checked={listOrder === o.value}
+          onClick={() => setListOrder(o.value)}
+          title="Changes only how the list is shown, not the print order"
+          className={`rounded px-2 py-0.5 ${listOrder === o.value ? "bg-ink-700 text-ink-50" : "text-ink-400 hover:text-ink-100"}`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   );
 }
