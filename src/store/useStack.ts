@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { create } from "zustand";
+import type { LevelMesh } from "../lib/geometry/mesh";
 import { computeStack, type StackResult } from "../lib/geometry/stack";
 import type { StackRequest, StackResponse } from "../workers/stackProtocol";
 import { useProject } from "./useProject";
@@ -11,11 +12,14 @@ import { useProject } from "./useProject";
  */
 interface StackState {
   result: StackResult | null;
+  /** Watertight meshes per level (same order as result.levels), for 3D and export. */
+  meshes: LevelMesh[] | null;
   pending: boolean;
+  meshesPending: boolean;
   error: string | null;
 }
 
-export const useStack = create<StackState>(() => ({ result: null, pending: false, error: null }));
+export const useStack = create<StackState>(() => ({ result: null, meshes: null, pending: false, meshesPending: false, error: null }));
 
 const DEBOUNCE_MS = 120;
 
@@ -35,20 +39,29 @@ export function useStackRunner() {
 
   useEffect(() => {
     if (parts.length === 0) {
-      useStack.setState({ result: null, pending: false, error: null });
+      useStack.setState({ result: null, meshes: null, pending: false, meshesPending: false, error: null });
       return;
     }
-    useStack.setState({ pending: true });
+    useStack.setState({ pending: true, meshesPending: true });
     const timer = setTimeout(() => run(), DEBOUNCE_MS);
     return () => clearTimeout(timer);
 
     function run() {
       const worker = getWorker();
       if (!worker) {
+        const id = ++requestId;
         try {
-          useStack.setState({ result: computeStack(arrangement, parts, footprints), pending: false, error: null });
+          const result = computeStack(arrangement, parts, footprints);
+          useStack.setState({ result, pending: false, error: null });
+          // Fallback only (no worker): load manifold on demand to keep the main bundle small.
+          Promise.all([import("../lib/geometry/mesh"), import("manifold-3d/manifold.wasm?url")])
+            .then(([m, url]) => m.buildMeshes(result, url.default))
+            .then(
+            (meshes) => id === requestId && useStack.setState({ meshes, meshesPending: false }),
+            (e) => id === requestId && useStack.setState({ meshesPending: false, error: String(e) }),
+          );
         } catch (e) {
-          useStack.setState({ pending: false, error: String(e) });
+          useStack.setState({ pending: false, meshesPending: false, error: String(e) });
         }
         return;
       }
@@ -67,14 +80,16 @@ function getWorker(): Worker | null {
   worker = createWorker();
   if (worker) {
     worker.onmessage = (e: MessageEvent<StackResponse>) => {
-      if (e.data.id !== requestId) return; // a newer request is in flight
-      if (e.data.error !== undefined) useStack.setState({ pending: false, error: e.data.error });
-      else useStack.setState({ result: e.data.result, pending: false, error: null });
+      const msg = e.data;
+      if (msg.id !== requestId) return; // a newer request is in flight
+      if (msg.kind === "stack") useStack.setState({ result: msg.result, pending: false, error: null });
+      else if (msg.kind === "meshes") useStack.setState({ meshes: msg.meshes, meshesPending: false });
+      else useStack.setState({ pending: false, meshesPending: false, error: msg.error });
     };
     worker.onerror = () => {
       // Fall back to computing on the main thread from now on.
       worker = null;
-      useStack.setState({ pending: false, error: "Background geometry worker failed; retry by changing any setting." });
+      useStack.setState({ pending: false, meshesPending: false, error: "Background geometry worker failed; retry by changing any setting." });
     };
   }
   return worker;

@@ -47,14 +47,20 @@ src/
   lib/geometry/stack.ts  arrangement → printed solids: scaling to target
                 width, support fill, plate, clearance, visible regions,
                 thin-feature and floating-area checks
-  workers/      stack.worker.ts runs computeStack off the main thread
+  lib/geometry/mesh.ts  manifold-3d (WASM) extrusion of each level's solid
+                into a watertight mesh (print coords, Z up, y flipped up)
+  workers/      stack.worker.ts: computeStack, then buildMeshes, off the
+                main thread
   lib/parts.ts  shapes → parts (merge key "label|#color"), footprints
   lib/arrangement.ts  levels (bottom → top), per-part name/enabled, thickness
                 settings, reconcile-with-parts, Z ranges, sidecar validation
   store/        useProject: zustand store; persist middleware autosaves to
                 localStorage (only source data + arrangement; parse/parts are
-                re-derived). useStack: debounced worker results
-  components/   UI (levels/ = dnd-kit level editor, preview/, controls/)
+                re-derived). useStack: debounced worker results (stack +
+                meshes). useView: shared preview state (tab, level slider,
+                explode)
+  components/   UI (levels/ = dnd-kit level editor; preview/ = 2D SVG view,
+                lazy-loaded react-three-fiber 3D view, error boundary)
   hooks/        useTheme (day / night / system)
 tests/          vitest
 ```
@@ -100,11 +106,16 @@ Inputs are the arrangement, the parts and their footprints (SVG page mm). Output
 
 On detailed art this takes about 200–350 ms, so `useStackRunner` (mounted once in `App`) debounces changes by 120 ms and posts them to `workers/stack.worker.ts`. Stale responses are dropped by request id. If workers are unavailable it falls back to the main thread.
 
+### Meshes and the 3D preview
+
+The worker answers each request twice: first `{kind: "stack"}` (2D is ready right away), then `{kind: "meshes"}` (about 100 ms on the samples). Mesh buffers are posted as transferables. `buildMeshes` turns each level's Clipper region into a manifold `CrossSection` (`NonZero`, because flipping y reverses winding), extrudes it by the level's thickness, translates it to `zStart`, checks `status() === "NoError"`, and returns xyz positions, triangle indices and volume. `tests/mesh.test.ts` asserts every directed edge has exactly one reverse twin, so the meshes are closed and consistently oriented. These are the meshes the exporters will write.
+
+The WASM is loaded with `manifold-3d/manifold.wasm?url` and passed as `locateFile`. Node tests let it find the file itself, and that test file uses `// @vitest-environment node`. `Preview3D` (three + drei, about 0.9 MB) is `React.lazy`-loaded with the 3D tab. It rotates the Z-up print into three's Y-up, uses `flatShading` (manifold shares vertices across faces), and shows a per-level legend with PLA grams at 1.24 g/cm³.
+
 **Drag and drop:** one `DndContext` with prefixed ids (`L:` level, `P:` part, `D:` level drop zone). Pointer collision and the keyboard coordinate getter are both filtered so levels only target levels and parts only target parts or drop zones. Every drag action also has a button or select equivalent.
 
 ### Planned layers (later milestones)
 
-- manifold-3d (WASM) for watertight extrusion of `StackLevel.solid` regions, also in a worker.
 - `lib/export/`: 3MF writer (`3D/3dmodel.model`, `Metadata/model_settings.config`, `Metadata/custom_gcode_per_layer.xml`, zipped with fflate) and per-level STL.
 
 ### Roadmap
@@ -114,7 +125,7 @@ On detailed art this takes about 200–350 ms, so `useStackRunner` (mounted once
 3. ✅ Level editor (drag-and-drop, thickness, rename, toggle, JSON sidecar, autosave)
 4. ✅ Support fill, background plate, clearance, thin-feature warnings
 4½. ✅ Layer normalization: whole layers, swap points, opacity check
-5. 3D preview with a level scrubber
+5. ✅ 3D preview with a level scrubber
 6. 3MF and STL export
 7. Color-change embedding and printable summary
 

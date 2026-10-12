@@ -12,7 +12,12 @@ export default defineConfig({
     watch: process.env.VITE_POLL ? { usePolling: true, interval: 300 } : undefined,
   },
   preview: { port: 5181, host: true },
-  build: { outDir: "dist", sourcemap: true },
+  build: {
+    outDir: "dist",
+    sourcemap: true,
+    // The 3D viewer chunk (three.js) is ~0.9 MB but lazy-loaded with the 3D tab.
+    chunkSizeWarningLimit: 1000,
+  },
   test: {
     environment: "jsdom",
     include: ["tests/**/*.test.ts"],

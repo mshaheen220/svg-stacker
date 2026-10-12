@@ -67,4 +67,14 @@ The **Layers & thickness** section of the left panel makes sure the stack prints
 - **Opacity check:** a color only shows its own level's thickness on top of the level below. Light colors over dark ones are translucent when thin, for example white over black or yellow over brown. When a level is too thin to hide the color below it, its card shows a ⚠ with the thickness it needs. Click **Fix** to raise that level, or **Normalize all levels** to fix every level at once. Levels are only ever made thicker, never thinner.
   - **Dark colors need** (default 0.4 mm) and **White over black needs** (default 1.2 mm) set the range. Other color pairs fall in between, depending on how light the top color is and how much darker the color under it is. If your filaments are thin or translucent, raise the white-over-black value and normalize again.
 
+## 6. 3D preview
+
+Switch the preview to the **3D** tab to see the finished piece. It's built from the exact solid models that will be exported.
+
+- **Drag** to orbit, **scroll** to zoom, and **right-drag** (or two-finger drag) to pan. **Reset view** brings the camera back.
+- The **Levels 1–N** slider is shared with the 2D view. Drag it to watch the print build up color by color.
+- **Explode** spreads the levels apart vertically, so you can see each level's shape and the wedding-cake support underneath.
+- The legend lists each visible level with a rough filament estimate in grams of PLA, and the top bar shows the total size and weight.
+- Hover a level or part in the Levels panel to highlight it in 3D.
+
 *More sections (arranging levels, exporting, color changes) will be added as those features land.*

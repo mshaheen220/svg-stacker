@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { regionToD } from "../../lib/geometry/regionPath";
 import { subpathsToD } from "../../lib/svg/pathData";
 import { useProject } from "../../store/useProject";
 import { useStack } from "../../store/useStack";
+import { useView } from "../../store/useView";
+import { LevelScrubber } from "./LevelScrubber";
 
 type Mode = "print" | "original";
 
@@ -23,12 +25,8 @@ export function Preview2D({ highlighted }: Props) {
   const [wireframe, setWireframe] = useState(false);
   const [showThin, setShowThin] = useState(true);
   const levelCount = result?.levels.length ?? 0;
-  // How many levels to show, from the bottom. null = all (tracks level count changes).
-  const [shown, setShown] = useState<number | null>(null);
-  useEffect(() => {
-    if (shown != null && shown > levelCount) setShown(null);
-  }, [levelCount, shown]);
-  const visibleCount = shown ?? levelCount;
+  const shown = useView((s) => s.shownLevels);
+  const visibleCount = Math.min(shown ?? levelCount, levelCount);
 
   const levelPaths = useMemo(
     () => result?.levels.map((l) => ({ level: l, solidD: regionToD(l.solid), thinD: l.thin.length ? regionToD(l.thin) : "" })) ?? [],
@@ -87,28 +85,7 @@ export function Preview2D({ highlighted }: Props) {
         </span>
       </div>
 
-      {mode === "print" && levelCount > 1 && (
-        <label className="flex items-center gap-2 px-1 pb-2 text-xs text-ink-300">
-          <span className="shrink-0">Levels 1–{visibleCount}</span>
-          <input
-            type="range"
-            min={1}
-            max={levelCount}
-            step={1}
-            value={visibleCount}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              setShown(v === levelCount ? null : v);
-            }}
-            aria-label="Show levels up to"
-            aria-valuetext={`Showing levels 1 to ${visibleCount} of ${levelCount}`}
-            className="flex-1"
-          />
-          <span className="w-40 shrink-0 truncate text-ink-400" title={result?.levels[visibleCount - 1]?.name}>
-            {result?.levels[visibleCount - 1]?.name}
-          </span>
-        </label>
-      )}
+      {mode === "print" && <LevelScrubber />}
 
       {error && mode === "print" && (
         <p role="alert" className="mb-2 rounded border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs text-red-400 day:text-red-700">

@@ -9,7 +9,7 @@ import { ThemeSwitcher } from "./components/ThemeSwitcher";
 import { FileDropzone } from "./components/controls/FileDropzone";
 import { NumberSlider } from "./components/controls/NumberSlider";
 import { LevelEditor } from "./components/levels/LevelEditor";
-import { Preview2D } from "./components/preview/Preview2D";
+import { PreviewPanel } from "./components/preview/PreviewPanel";
 import { planLevels } from "./lib/layers";
 import { useProject } from "./store/useProject";
 import { useStack, useStackRunner } from "./store/useStack";
@@ -78,7 +78,7 @@ export default function App() {
 
         <main className="min-h-[60vh] flex-1 p-4 lg:min-h-0" aria-label="Preview">
           {parsed ? (
-            <Preview2D highlighted={highlighted} />
+            <PreviewPanel highlighted={highlighted} />
           ) : (
             <div className="flex h-full min-h-[50vh] items-center justify-center rounded-lg border border-dashed border-ink-800 text-sm text-ink-400">
               Import an SVG to get started.
