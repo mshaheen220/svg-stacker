@@ -43,8 +43,11 @@ src/
   lib/geometry/ region.ts: clipper2-ts wrapper. Regions are integer µm Paths64
                 (outer +, holes -), fill-rule-aware fills, stroke outlines
   lib/parts.ts  shapes → parts (merge key "label|#color"), footprints
-  store/        zustand app state
-  components/   UI (preview/, controls/)
+  lib/arrangement.ts  levels (bottom → top), per-part name/enabled, thickness
+                settings, reconcile-with-parts, Z ranges, sidecar validation
+  store/        zustand store; persist middleware autosaves to localStorage
+                (only source data + arrangement; parse/parts are re-derived)
+  components/   UI (levels/ = dnd-kit level editor, preview/, controls/)
   hooks/        useTheme (day / night / system)
 tests/          vitest
 ```
@@ -55,7 +58,19 @@ Coordinates are millimetres, y-down, page origin. The flip to y-up happens at me
 
 ### Parts
 
-Shapes merge into a part when they share the same Inkscape label (own label, or the enclosing Inkscape layer's) **and** color. The same label in different colors is split into "label (color name)". Unlabeled shapes merge by color and are named "teal #008080". A stroke can become its own geometry (a ring for closed paths, capped for open ones) colored by the stroke. Strokes under 0.2 mm default to *ignore* because auto-traced art often carries stale-colored hairlines. Default part order is the paint position of each part's first shape. The part key (`label|#color`) is what saved arrangements will refer to.
+Shapes merge into a part when they share the same Inkscape label (own label, or the enclosing Inkscape layer's) **and** color. The same label in different colors is split into "label (color name)". Unlabeled shapes merge by color and are named "teal #008080". A stroke can become its own geometry (a ring for closed paths, capped for open ones) colored by the stroke. Strokes under 0.2 mm default to *ignore* because auto-traced art often carries stale-colored hairlines. Default part order is the paint position of each part's first shape. The part key (`label|#color`) is what saved arrangements refer to.
+
+### Levels and arrangements
+
+An `Arrangement` is an ordered list of levels (index 0 = bottom). Each level holds part keys and an optional thickness override. Per-part settings hold the rename and enabled flag. Global settings are the base (level 1) and default thicknesses. `printedLevels()` is the single source of truth for what prints: levels with no enabled parts are skipped, the base thickness applies to the first *printed* level, and it returns Z ranges.
+
+`reconcile()` keeps an arrangement valid whenever the part list changes (stroke-mode toggle, tolerance change, sidecar applied to a different SVG). Missing keys are dropped. New parts get their own level just above the level holding the part painted before them.
+
+**Sidecar format** (`*.stacker.json`): `{ app: "svg-stacker", format: 1, appVersion, svgName, svgHash, tolerance, strokeModes, arrangement }`. `svgHash` is FNV-1a of the SVG text and is only used to warn when a sidecar is applied to a different file. `parseSidecar()` validates and clamps everything, because the file is untrusted input.
+
+**Autosave:** the localStorage key is `svg-stacker:project`. Persist's `merge` re-derives parse/parts on hydration. Storage errors such as quota or private mode are swallowed.
+
+**Drag and drop:** one `DndContext` with prefixed ids (`L:` level, `P:` part, `D:` level drop zone). Pointer collision and the keyboard coordinate getter are both filtered so levels only target levels and parts only target parts or drop zones. Every drag action also has a button or select equivalent.
 
 ### Planned layers (later milestones)
 
@@ -66,7 +81,7 @@ Shapes merge into a part when they share the same Inkscape label (own label, or 
 
 1. ✅ Scaffold, plus import and 2D preview
 2. ✅ Grouping into parts (label/color merge, stroke handling)
-3. Level editor (drag-and-drop, thickness, rename, toggle, JSON sidecar, autosave)
+3. ✅ Level editor (drag-and-drop, thickness, rename, toggle, JSON sidecar, autosave)
 4. Support fill, background plate, clearance, thin-feature warnings
 5. 3D preview with a level scrubber
 6. 3MF and STL export
@@ -74,5 +89,5 @@ Shapes merge into a part when they share the same Inkscape label (own label, or 
 
 ## Conventions
 
-- The version in `package.json` is shown in the UI (injected as `__APP_VERSION__` by `vite.config.ts`). Bump it with every change.
+- The version in `package.json` is shown in the UI (imported as `version` from `package.json`; Vite tree-shakes the rest of the manifest). Bump it with every change.
 - Theme colors come from the CSS-variable `ink` ramp in `src/index.css`. Day theme mirrors the ramp, so use `bg-ink-950`/`text-ink-100` and so on instead of `dark:` variants. Use `day:` for the rare exceptions.

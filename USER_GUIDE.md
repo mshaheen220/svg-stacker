@@ -22,7 +22,22 @@ Shapes are grouped into **parts**. Each part is one filament color in the finish
 
 - Shapes with the same Inkscape name and the same color become one part, named after the label. If one label covers several colors, each gets its own part, e.g. "background (white)" and "background (rose)".
 - Unnamed shapes are grouped by color and named like "teal #008080".
-- Hover a part in the list to highlight it in the preview. The preview's **Parts** mode shows the merged geometry. **Original** shows the shapes as imported.
-- **Strokes:** each stroked shape can be set to **Outline**, which makes the stroke its own part (great for a colored border ring around a circle), or **Ignore**. Very thin strokes (under 0.2 mm) are ignored by default. They're usually leftovers from auto-tracing and too thin to print.
+- The preview's **Print** mode shows what will print: each part in its level's filament color, stacked bottom to top. **Original** shows the shapes as imported.
+- **Strokes** (left panel): each stroked shape can be set to **Outline**, which makes the stroke its own part (great for a colored border ring around a circle), or **Ignore**. Very thin strokes (under 0.2 mm) are ignored by default. They're usually leftovers from auto-tracing and too thin to print.
+
+## 3. Arrange the levels
+
+The **Levels** panel on the right lists levels from the bottom (Level 1, printed first) to the top. Each level is printed in one filament color, and by default each part gets its own level in the order it was drawn.
+
+- **Reorder levels:** drag a level by its ⠿ handle, or use the ↑ / ↓ arrows. With the keyboard, focus the handle, press Space, move with the arrow keys, and press Space again to drop (Esc cancels).
+- **Move parts between levels:** drag a part's ⠿ handle onto another level, or use its **Move…** menu. The menu can also create a new level at the top or bottom. Putting several parts on one level prints them in the same filament. If their colors differ, you'll see a warning and the first part's color is used.
+- **Rename a part:** click its name and type. The name is used in OrcaSlicer. Clear it to go back to the default name.
+- **Leave a part out:** untick its checkbox. A level with no ticked parts isn't printed.
+- **Thickness:** set the **Base (level 1)** and **Other levels** defaults in the left panel. To override one level, type a value in its header. Leave it blank to use the default. Each level shows its Z range, and the panel shows the total height.
+- **Highlighting:** hover a level or part to highlight it in the preview.
+
+### Saving your arrangement
+
+Your work is autosaved in this browser. Re-opening the same SVG keeps your arrangement. To keep it somewhere safe, or to use it on another computer, click **Save arrangement…** to download a small `.stacker.json` file. Later, import the same SVG and click **Load arrangement…**. If the SVG has changed, parts are matched by name and color, and you'll see a note. **Reset** returns everything to the defaults for the current SVG.
 
 *More sections (arranging levels, exporting, color changes) will be added as those features land.*
